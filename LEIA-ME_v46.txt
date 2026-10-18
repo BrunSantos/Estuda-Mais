@@ -1,0 +1,7 @@
+Estuda+ — Versão 46
+
+Adicionadas dicas e exemplos de método às fichas de Matemática, explicações depois da correção em Matemática, Ciências/Estudo do Meio e História, e cinco esquemas SVG locais de Ciências quando o tema corresponde.
+
+ATENÇÃO: as explicações são geradas por regras por tipo de pergunta; devem ser revistas pedagogicamente antes de publicação definitiva. Algumas explicações de questões não reconhecidas são orientações gerais, não análises específicas. Os esquemas são simplificados.
+
+Publicação: copiar os ficheiros para a RAIZ do repositório GitHub (não apagar a pasta .git), Commit to main, Push origin.
