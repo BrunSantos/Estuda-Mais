@@ -1,0 +1,1 @@
+Estuda+ v47: ao terminar sessão regressa à página inicial de escolha do ano. Troca de conta autenticada também regressa ao início.
