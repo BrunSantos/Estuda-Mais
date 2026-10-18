@@ -1,0 +1,62 @@
+rules_version = '2';
+service cloud.firestore {
+ match /databases/{database}/documents {
+  function signedIn() { return request.auth != null; }
+  function owner(uid) { return signedIn() && request.auth.uid == uid; }
+  function validName(n) { return n is string && n.size() >= 2 && n.size() <= 32; }
+  match /users/{uid} {
+   allow get: if owner(uid);
+   allow list: if false;
+   allow create: if owner(uid) && request.resource.data.keys().hasOnly(['name','avatar','rankingOptIn','completed','points','createdAt'])
+      && validName(request.resource.data.name) && request.resource.data.rankingOptIn == false
+      && request.resource.data.completed == 0 && request.resource.data.points == 0;
+   allow update: if owner(uid) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['avatar','rankingOptIn','completed','points'])
+      && request.resource.data.name == resource.data.name
+      && request.resource.data.completed in [resource.data.completed, resource.data.completed + 1]
+      && request.resource.data.get('points',0) is int
+      && request.resource.data.get('points',0) >= resource.data.get('points',0)
+      && request.resource.data.get('points',0) <= resource.data.get('points',0) + 500
+      && request.resource.data.rankingOptIn is bool;
+   allow delete: if false;
+   match /best/{quizId} {
+    allow get, list: if owner(uid);
+    allow create, update: if owner(uid)
+      && request.resource.data.keys().hasOnly(['file','points','correct','total','percent'])
+      && request.resource.data.file is string
+      && request.resource.data.points is int && request.resource.data.points >= 10 && request.resource.data.points <= 500
+      && request.resource.data.correct is int && request.resource.data.total is int
+      && request.resource.data.total >= 1 && request.resource.data.total <= 100
+      && request.resource.data.correct >= 0 && request.resource.data.correct <= request.resource.data.total
+      && request.resource.data.percent is int && request.resource.data.percent >= 0 && request.resource.data.percent <= 100
+      && (!exists(/databases/$(database)/documents/users/$(uid)/best/$(quizId)) || request.resource.data.points > resource.data.points);
+    allow delete: if false;
+   }
+   match /history/{entryId} {
+    allow get, list: if owner(uid);
+    allow create: if owner(uid) && request.resource.data.keys().hasOnly(['date','year','subject','title','score','seconds','duration','file'])
+      && request.resource.data.date is string && request.resource.data.title is string
+      && request.resource.data.score is string && request.resource.data.seconds is int
+      && request.resource.data.seconds >= 0 && request.resource.data.seconds <= 86400;
+    allow update, delete: if false;
+   }
+  }
+  match /ranking/{uid} {
+   allow get, list: if signedIn();
+   allow create: if owner(uid) && getAfter(/databases/$(database)/documents/users/$(uid)).data.rankingOptIn == true
+     && request.resource.data.keys().hasOnly(['name','avatar','completed','points'])
+     && request.resource.data.name == getAfter(/databases/$(database)/documents/users/$(uid)).data.name
+     && request.resource.data.completed == getAfter(/databases/$(database)/documents/users/$(uid)).data.completed
+     && request.resource.data.points == getAfter(/databases/$(database)/documents/users/$(uid)).data.get('points',0);
+   allow update: if owner(uid) && getAfter(/databases/$(database)/documents/users/$(uid)).data.rankingOptIn == true
+     && request.resource.data.keys().hasOnly(['name','avatar','completed','points'])
+     && request.resource.data.name == resource.data.name
+     && request.resource.data.completed == getAfter(/databases/$(database)/documents/users/$(uid)).data.completed
+     && request.resource.data.completed in [resource.data.completed, resource.data.completed + 1]
+      && request.resource.data.get('points',0) is int
+     && request.resource.data.get('points',0) == getAfter(/databases/$(database)/documents/users/$(uid)).data.get('points',0)
+     && request.resource.data.get('points',0) >= resource.data.get('points',0)
+     && request.resource.data.get('points',0) <= resource.data.get('points',0) + 500;
+   allow delete: if owner(uid);
+  }
+ }
+}

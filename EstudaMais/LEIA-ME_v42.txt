@@ -1,0 +1,15 @@
+ESTUDA+ V42 — 1.º ANO COM 60 FICHAS
+
+20 fichas de Português, 20 de Matemática e 20 de Estudo do Meio.
+As primeiras fichas de cada disciplina foram mantidas; adicionadas 19 por disciplina.
+Cada ficha nova tem 8 perguntas de escolha múltipla.
+
+TERMINAL (Mac):
+1. Escreve cd seguido de um espaço e arrasta a pasta EstudaMais_v42 para o Terminal.
+2. Carrega em Enter.
+3. Executa: python3 -m http.server 8000
+4. Abre http://localhost:8000
+Para parar: Control + C.
+
+FIREBASE: Não é necessário atualizar as regras do Firestore ou Authentication.
+NOTA: A gravação de resultados depende do funcionamento do código Firebase já existente na v41.

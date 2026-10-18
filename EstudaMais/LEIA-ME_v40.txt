@@ -1,0 +1,9 @@
+Estuda+ v40 — correção de resultados em todas as fichas
+
+Corrige a identificação das fichas cujas perguntas são geradas dinamicamente e dos resultados no formato «Resultado: 6 / 8». Apresenta aviso quando não consegue interpretar o resultado.
+
+Terminal: escreve cd seguido de um espaço, arrasta a pasta EstudaMais_v40, Enter, e depois python3 -m http.server 8000. Abre http://localhost:8000.
+
+Firestore: não há novas regras nesta versão.
+
+Ainda é necessário testar a gravação no Firebase real.

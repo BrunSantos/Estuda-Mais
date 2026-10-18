@@ -1,0 +1,8 @@
+ESTUDA+ V35 - LOGIN FIREBASE
+
+O login online NÃO funciona abrindo index.html diretamente por duplo clique (file://).
+Publica todos os ficheiros no GitHub Pages (HTTPS), adiciona o domínio a Authentication > Settings > Authorized domains e publica firestore.rules em Firestore > Rules.
+
+A página mostra agora um ecrã de carregamento ou uma mensagem explicativa se o Firebase não carregar.
+
+A aplicação não foi testada com uma conta Firebase real.
