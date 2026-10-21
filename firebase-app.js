@@ -78,7 +78,25 @@ function renderRanking(){const t=document.getElementById('eprankingtable');if(!t
  let previous=null,rank=0;
  t.innerHTML=rows.length?'<table><thead><tr><th>Posição</th><th>Aluno</th><th>Pontos</th><th>Fichas</th></tr></thead><tbody>'+rows.map((x,i)=>{const points=Number(x.points||0);if(points!==previous){rank=i+1;previous=points}return '<tr><td>'+(rank===1?'🥇':rank===2?'🥈':rank===3?'🥉':'')+' '+rank+'.º</td><td>'+avHtml(x.avatar)+' '+esc(x.name)+'</td><td>'+points+'</td><td>'+Number(x.completed||0)+'</td></tr>'}).join('')+'</tbody></table>':'<p>Ainda não existem alunos classificados. Conclui uma ficha para começares! A participação é opcional.</p>';
 }
-function scoreInfo(text){const m=String(text).match(/Resultado:\s*(\d+)\s*(?:de|\/)\s*(\d+)/i);if(!m)return null;const correct=Number(m[1]),total=Number(m[2]);if(!Number.isInteger(correct)||!Number.isInteger(total)||total<1||correct>total)return null;const percent=Math.round(100*correct/total);const points=10+correct*5+(correct===total?30:percent>=80?20:0);return {correct,total,percent,points}}
+function scoreInfo(text){
+ const raw=String(text||'');
+ // Formato habitual: "Resultado: 6 de 8" ou "Resultado: 6/8".
+ let m=raw.match(/Resultado:\s*(\d+)\s*(?:de|\/)\s*(\d+)/i);
+ // Fichas de Ciências do 5.º ano: "Resultado: 75%" e "6 respostas certas em 8".
+ if(!m){
+  const counts=raw.match(/(\d+)\s+respostas?\s+certas?\s+em\s+(\d+)/i);
+  const pct=raw.match(/Resultado:\s*(\d+)\s*%/i);
+  if(!counts||!pct)return null;
+  const correct=Number(counts[1]),total=Number(counts[2]),reported=Number(pct[1]);
+  if(!Number.isInteger(correct)||!Number.isInteger(total)||total<1||correct<0||correct>total||reported!==Math.round(100*correct/total))return null;
+  m=counts;
+ }
+ const correct=Number(m[1]),total=Number(m[2]);
+ if(!Number.isInteger(correct)||!Number.isInteger(total)||total<1||correct<0||correct>total)return null;
+ const percent=Math.round(100*correct/total);
+ const points=10+correct*5+(correct===total?30:percent>=80?20:0);
+ return {correct,total,percent,points};
+}
 function historyView(){show('<p>O histórico pertence apenas à tua conta. São apresentados os 500 resultados mais recentes.</p><div id="ephistory"></div><div class="epactions"><button type="button" class="epbtn" id="epexport">Exportar CSV</button><button type="button" class="epbtn primary" id="epclose">Fechar</button></div>','📋 O meu histórico');const t=document.getElementById('ephistory');t.innerHTML=history.length?'<table><thead><tr><th>Data</th><th>Ano / Disciplina</th><th>Teste</th><th>Resultado</th><th>Tempo</th></tr></thead><tbody>'+history.map(x=>'<tr><td>'+esc(x.date?new Date(x.date).toLocaleString('pt-PT'):'—')+'</td><td>'+esc(x.year)+' / '+esc(x.subject)+'</td><td>'+esc(x.title)+'</td><td>'+esc(x.score)+'</td><td>'+esc(x.duration)+'</td></tr>').join('')+'</tbody></table>':'Ainda não existem testes concluídos.';document.getElementById('epclose').onclick=hide;document.getElementById('epexport').onclick=()=>{const rows=[['Data','Ano','Disciplina','Teste','Resultado','Segundos'],...history.map(x=>[x.date,x.year,x.subject,x.title,x.score,x.seconds])];const csv='\ufeff'+rows.map(r=>r.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(';')).join('\r\n');const a=el('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));a.download='estudamais_historico.csv';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}}
 
 function lockQuiz(){
