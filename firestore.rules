@@ -19,10 +19,31 @@ service cloud.firestore {
       && request.resource.data.get('points',0) <= resource.data.get('points',0) + 500
       && request.resource.data.rankingOptIn is bool && request.resource.data.get('schoolYear','') is string;
    allow delete: if false;
+   match /requests/{guardianUid} {
+    allow get: if owner(uid) || (signedIn() && request.auth.uid == guardianUid);
+    allow list: if owner(uid);
+    allow create: if signedIn() && request.auth.uid == guardianUid && guardianUid != uid
+      && get(/databases/$(database)/documents/users/$(guardianUid)).data.get('role','student') == 'guardian'
+      && request.resource.data.keys().hasOnly(['guardianName','createdAt'])
+      && request.resource.data.guardianName == get(/databases/$(database)/documents/users/$(guardianUid)).data.name
+      && request.resource.data.createdAt == request.time;
+    allow delete: if owner(uid);
+    allow update: if false;
+   }
+   match /children/{studentUid} {
+    allow get, list: if owner(uid);
+    allow create: if signedIn() && request.auth.uid == studentUid
+      && get(/databases/$(database)/documents/users/$(uid)).data.get('role','student') == 'guardian'
+      && existsAfter(/databases/$(database)/documents/users/$(studentUid)/guardians/$(uid))
+      && request.resource.data.keys().hasOnly(['createdAt']) && request.resource.data.createdAt == request.time;
+    allow delete: if owner(uid) || (signedIn() && request.auth.uid == studentUid);
+    allow update: if false;
+   }
    match /guardians/{guardianUid} {
     allow get: if owner(uid) || (signedIn() && request.auth.uid == guardianUid);
     allow list: if owner(uid);
     allow create: if owner(uid) && guardianUid != uid
+      && get(/databases/$(database)/documents/users/$(guardianUid)).data.get('role','student') == 'guardian'
       && request.resource.data.keys().hasOnly(['createdAt'])
       && request.resource.data.createdAt == request.time;
     allow delete: if owner(uid);

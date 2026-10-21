@@ -1,0 +1,10 @@
+Estuda+ V54.2 — Área da Família com código QR
+
+- Cada conta mostra o próprio código e QR.
+- Aluno: autorizar encarregado e gerir autorizações.
+- Encarregado: consultar aluno autorizado e histórico.
+- Ler QR usa BarcodeDetector do navegador e requer HTTPS, permissão da câmara e compatibilidade. Se indisponível, copiar/colar código.
+- QR contém apenas identificador da conta; ler não concede acesso.
+- Substituir conteúdo do repositório, preservar .git, Commit e Push.
+- Não há alterações às regras Firestore nesta versão.
+- Testar com contas reais antes de disponibilizar aos alunos.

@@ -1,0 +1,11 @@
+Estuda+ v54.4 — Pedidos de autorização familiar
+
+1. Copiar todos os ficheiros deste ZIP para o repositório, sem apagar a pasta .git.
+2. IMPORTANTE: Firebase Console > Firestore Database > Rules: substituir pelas regras de firestore.rules e clicar em Publish.
+3. GitHub Desktop > Commit to main > Push origin.
+4. Testar com duas contas: encarregado envia pedido através do UID ou QR; aluno abre Família, autoriza; encarregado atualiza o painel.
+
+O aluno não precisa de introduzir o código do encarregado. O encarregado não pode consultar dados do aluno antes de este autorizar.
+A câmara e leitura de imagem usam BarcodeDetector, disponível apenas em alguns browsers/dispositivos. No Safari sem suporte, usar o código escrito.
+Os alunos autorizados nesta versão ficam ligados à conta do encarregado e aparecem noutros dispositivos. Ligações de versões anteriores podem ter de ser associadas novamente.
+Não houve testes end-to-end com contas reais Firebase nem validação num iPhone/iPad físico.

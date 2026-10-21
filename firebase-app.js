@@ -1,6 +1,6 @@
 import {initializeApp} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
 import {getAuth,onAuthStateChanged,createUserWithEmailAndPassword,signInWithEmailAndPassword,signOut,sendPasswordResetEmail,updateProfile} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
-import {getFirestore,doc,getDoc,setDoc,collection,getDocs,query,orderBy,limit,writeBatch,increment,serverTimestamp,onSnapshot,runTransaction} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
+import {getFirestore,doc,getDoc,setDoc,collection,getDocs,query,orderBy,limit,writeBatch,increment,serverTimestamp,onSnapshot,runTransaction,deleteDoc} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
 import {defaultAvatar,choices,avSvg,avHtml} from './firebase-avatar.js';
 const config={apiKey:'AIzaSyC5c1ZCjTLcNZeuSTcVdSulEuvgaRRecW4',authDomain:'estudamais-d319f.firebaseapp.com',projectId:'estudamais-d319f',storageBucket:'estudamais-d319f.firebasestorage.app',messagingSenderId:'534502111585',appId:'1:534502111585:web:7b90fe11254cc7fd81ed20'};
 const app=initializeApp(config),auth=getAuth(app),db=getFirestore(app);
@@ -260,31 +260,114 @@ const epFamilySavedKey=()=> 'estudamais-family-students-v54-1-'+(user?.uid||'');
 function epFamilySaved(){try{const ids=JSON.parse(localStorage.getItem(epFamilySavedKey())||'[]');return Array.isArray(ids)?ids.filter(epUidOK).slice(0,30):[]}catch{return []}}
 function epFamilyRemember(id){const ids=[id,...epFamilySaved().filter(x=>x!==id)].slice(0,30);try{localStorage.setItem(epFamilySavedKey(),JSON.stringify(ids))}catch{}}
 function epFamilyForget(id){try{localStorage.setItem(epFamilySavedKey(),JSON.stringify(epFamilySaved().filter(x=>x!==id)))}catch{}}
+// V54.2: QR shows only the Firebase UID, never passwords or private student data.
+function epFamilyQr(id){
+ const area=document.getElementById('epfamilyqr');if(!area)return;
+ try{
+  if(typeof window.EstudaQR!=='function')throw Error('Biblioteca QR indisponível.');
+  const qr=new window.EstudaQR(0,1);qr.addData(id);qr.make();
+  const n=qr.getModuleCount(),pad=4,svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+  svg.setAttribute('viewBox',`0 0 ${n+pad*2} ${n+pad*2}`);svg.setAttribute('width','208');svg.setAttribute('height','208');svg.setAttribute('role','img');svg.setAttribute('aria-label','Código QR da conta');
+  const bg=document.createElementNS(svg.namespaceURI,'rect');bg.setAttribute('width','100%');bg.setAttribute('height','100%');bg.setAttribute('fill','#fff');svg.appendChild(bg);
+  let path='';for(let y=0;y<n;y++)for(let x=0;x<n;x++)if(qr.isDark(y,x))path+=`M${x+pad} ${y+pad}h1v1h-1z`;
+  const dots=document.createElementNS(svg.namespaceURI,'path');dots.setAttribute('d',path);dots.setAttribute('fill','#102f54');svg.appendChild(dots);
+  area.replaceChildren(svg);
+ }catch(e){area.textContent='Não foi possível apresentar o QR. Utiliza o código escrito.';console.warn('Estuda+ QR:',e)}
+}
+async function epFamilyScan(targetId){
+ const input=document.getElementById(targetId);
+ if(!input)return;
+ if(!('BarcodeDetector' in window)){message('A leitura QR não é suportada por este navegador. Podes copiar e colar o código escrito.');return}
+ let detector;
+ try{detector=new BarcodeDetector({formats:['qr_code']})}catch(e){message('Leitura QR indisponível neste dispositivo. Introduz o código manualmente.');return}
+ const screen=el('div',{id:'epqrscan'});
+ screen.style='position:fixed;inset:0;z-index:2147483640;background:#081d35ee;display:flex;align-items:center;justify-content:center;padding:16px';
+ screen.innerHTML='<div style="background:white;color:#19314f;border-radius:16px;padding:16px;width:min(430px,100%);text-align:center"><h3>Ler código QR</h3><p>Aponta a câmara para o QR da outra conta.</p><video autoplay muted playsinline style="width:100%;max-height:55vh;background:#14243c;border-radius:10px"></video><p id="epqrscanmsg" role="status">A iniciar câmara…</p><button type="button" class="epbtn" id="epqrstop">Cancelar</button></div>';
+ document.body.append(screen);
+ const video=screen.querySelector('video'),status=screen.querySelector('#epqrscanmsg');let stream=null,active=true,frame=0;
+ const close=()=>{active=false;if(frame)cancelAnimationFrame(frame);if(stream)stream.getTracks().forEach(t=>t.stop());screen.remove()};
+ screen.querySelector('#epqrstop').onclick=close;
+ try{
+  if(!navigator.mediaDevices?.getUserMedia)throw Error('A câmara requer HTTPS e permissão de acesso.');
+  stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});
+  if(!active){stream.getTracks().forEach(t=>t.stop());return}
+  video.srcObject=stream;await video.play();status.textContent='A procurar o QR…';
+  let busy=false,last=0;
+  const tick=async(t)=>{
+   if(!active)return;
+   if(!busy&&t-last>220&&video.readyState>=2){last=t;busy=true;try{
+    const found=await detector.detect(video);
+    for(const item of found){const raw=String(item.rawValue||'').trim();if(epUidOK(raw)){input.value=raw;close();message('Código lido. Confirma a operação para continuar.',true);return}}
+   }catch(e){status.textContent='Não foi possível ler este QR. Tenta aproximar a câmara.'}finally{busy=false}}
+   if(active)frame=requestAnimationFrame(tick)
+  };frame=requestAnimationFrame(tick);
+ }catch(e){status.textContent='Não foi possível abrir a câmara: '+(e?.message||'verifica as permissões')+'. Usa o código escrito.';if(stream)stream.getTracks().forEach(t=>t.stop())}
+}
 function epFamilyHome(){
  if(!user)return;
  const parent=epIsGuardian();
- const intro=parent?'Consulta os resultados dos alunos que autorizaram a tua conta. A autorização é sempre controlada pelo aluno.':'Autoriza um encarregado de educação a consultar os teus resultados. Podes revogar o acesso a qualquer momento.';
- const common='<p>'+intro+'</p><div style="background:#f0f6ff;padding:12px;border-radius:12px"><strong>O meu código de conta</strong><p style="overflow-wrap:anywhere;font-family:monospace">'+esc(user.uid)+'</p><button class="epbtn" id="epcopyuid">Copiar código</button></div>';
- const studentHtml='<h3>Autorizar um encarregado</h3><p class="ephelp">Introduz o código da conta do encarregado de educação.</p><label>Código do encarregado<input id="epguardianuid" placeholder="Código da conta do encarregado" autocomplete="off"></label><div class="epactions"><button class="epbtn primary" id="epgrant">Autorizar</button><button class="epbtn" id="epmanage">Gerir autorizações</button></div>';
+ const intro=parent?'Consulta os resultados dos alunos que autorizaram a tua conta.':'Autoriza um encarregado de educação a consultar os teus resultados. Podes revogar o acesso a qualquer momento.';
+ const common='<p>'+intro+'</p><section style="background:#f0f6ff;padding:16px;border-radius:12px;text-align:center"><strong>O meu código de conta</strong><p style="overflow-wrap:anywhere;font-family:monospace;user-select:all">'+esc(user.uid)+'</p><div id="epfamilyqr" style="display:flex;justify-content:center;min-height:210px;align-items:center"></div><p class="ephelp">Mostra este QR à outra pessoa ou partilha o código escrito.</p><button class="epbtn" id="epcopyuid">Copiar o meu código</button></section>';
+ const studentHtml='<h3>Pedidos de acesso</h3><p class="ephelp">Os encarregados enviam o pedido através do teu QR. Só tu podes autorizar.</p><div id="eppending">A carregar pedidos…</div><div class="epactions"><button class="epbtn" type="button" id="epmanage">Gerir autorizações</button></div>';
  const saved=epFamilySaved();
- const savedHtml=saved.length?'<h3>Alunos consultados anteriormente</h3><p class="ephelp">Lista guardada apenas neste navegador. Cada consulta verifica novamente a autorização no Firebase.</p><div id="epfamilysaved"></div>':'';
- const parentHtml=savedHtml+'<h3>Consultar resultados de um aluno</h3><p class="ephelp">Introduz o código da conta de um aluno que te autorizou.</p><label>Código do aluno<input id="epchilduid" placeholder="Código da conta do aluno" autocomplete="off"></label><div class="epactions"><button class="epbtn primary" id="epviewchild">Consultar evolução</button></div>';
+ const savedHtml=saved.length?'<h3>Alunos consultados anteriormente</h3><p class="ephelp">Esta lista é guardada neste dispositivo. A autorização é verificada em cada consulta.</p><div id="epfamilysaved"></div>':'';
+ const parentHtml=savedHtml+'<h3>Pedir acesso a um aluno</h3><p class="ephelp">Digitaliza o QR do aluno ou introduz o código. O aluno receberá um pedido para aceitar ou recusar.</p><label>Código do aluno<input id="epchilduid" placeholder="Colar código do aluno" autocomplete="off" spellcheck="false"></label><div class="epactions"><button class="epbtn" type="button" id="epscanchild">📷 Abrir câmara</button><button class="epbtn" type="button" id="epphoto">📁 Ler fotografia QR</button><input id="epphotofile" type="file" accept="image/*" style="display:none"><button class="epbtn primary" type="button" id="epviewchild">Pedir acesso</button></div>';
  show(common+(parent?parentHtml:studentHtml)+'<div class="epactions"><button class="epbtn" id="epfamilyclose">Fechar</button></div>','👨‍👩‍👧 Área da família');
- document.getElementById('epcopyuid').onclick=()=>navigator.clipboard?.writeText(user.uid).then(()=>message('Código copiado.',true)).catch(()=>message('Seleciona e copia o código acima.'));
- document.getElementById('epfamilyclose').onclick=hide;
+ epFamilyQr(user.uid);
+ document.getElementById('epcopyuid').onclick=async()=>{try{await navigator.clipboard.writeText(user.uid);message('Código copiado.',true)}catch(e){message('Seleciona o código escrito e copia-o manualmente.')}};
+ document.getElementById('epfamilyclose').onclick=()=>{hide();if(epIsGuardian())epGuardianDashboard()};
  if(parent){
-  document.getElementById('epviewchild').onclick=()=>epFamilyReport(document.getElementById('epchilduid').value.trim());
+  document.getElementById('epscanchild').onclick=()=>epFamilyScan('epchilduid');
+  document.getElementById('epviewchild').onclick=()=>epFamilyRequest(document.getElementById('epchilduid').value.trim());
+  document.getElementById('epphoto').onclick=()=>document.getElementById('epphotofile').click();
+  document.getElementById('epphotofile').onchange=e=>epFamilyPhoto(e.target.files?.[0],'epchilduid');
   const target=document.getElementById('epfamilysaved');
   if(target)for(const id of saved){const row=el('div');row.style='display:flex;gap:8px;align-items:center;margin:8px 0;flex-wrap:wrap';const view=el('button',{class:'epbtn',type:'button'},'Consultar '+id.slice(0,8)+'…');view.onclick=()=>epFamilyReport(id);const forget=el('button',{class:'epbtn',type:'button'},'Retirar da lista');forget.onclick=()=>{epFamilyForget(id);row.remove()};row.append(view,forget);target.append(row)}
  }else{
-  document.getElementById('epgrant').onclick=async()=>{
-   const id=document.getElementById('epguardianuid').value.trim();
-   if(!epUidOK(id)||id===user.uid){message('Introduz um código de encarregado válido e diferente do teu.');return}
-   if(!confirm('Confirmas que esta conta pertence ao encarregado de educação autorizado? Ele poderá consultar o teu perfil e histórico de fichas.'))return;
-   try{await setDoc(doc(db,'users',user.uid,'guardians',id),{createdAt:serverTimestamp()});message('Acesso autorizado. O encarregado já pode consultar os resultados.',true)}catch(e){message(authError(e))}
-  };
   document.getElementById('epmanage').onclick=epFamilyManage;
+  epFamilyPending();
  }
+}
+
+// V54.4: requests are stored under the student, never disclose student details before approval.
+async function epFamilyRequest(id){
+ if(!epIsGuardian()||!epUidOK(id)||id===user.uid){message('Introduz um código de aluno válido.');return}
+ try{
+  await setDoc(doc(db,'users',id,'requests',user.uid),{guardianName:profile.name,createdAt:serverTimestamp()});
+  message('Pedido enviado. O aluno terá de o autorizar na sua conta.',true);
+ }catch(e){message('Não foi possível enviar o pedido: '+authError(e))}
+}
+async function epFamilyPending(){
+ const area=document.getElementById('eppending');if(!area||epIsGuardian())return;
+ try{
+  const snap=await getDocs(collection(db,'users',user.uid,'requests'));
+  if(!area.isConnected)return;
+  area.replaceChildren();
+  if(snap.empty){area.textContent='Não tens pedidos pendentes.';return}
+  for(const entry of snap.docs){
+   const line=el('div');line.style='border:1px solid #cbdbea;border-radius:12px;padding:12px;margin:10px 0';
+   const name=el('p',{},'O encarregado de educação '+String(entry.data().guardianName||'Conta desconhecida')+' pretende acompanhar os teus resultados.');
+   const yes=el('button',{type:'button',class:'epbtn'},'✓ Autorizar');
+   const no=el('button',{type:'button',class:'epbtn'},'✕ Recusar');no.style.marginLeft='8px';
+   yes.onclick=async()=>{if(!confirm('Autorizar '+entry.data().guardianName+' a consultar os teus resultados escolares?'))return;yes.disabled=true;no.disabled=true;try{
+    const batch=writeBatch(db);batch.set(doc(db,'users',user.uid,'guardians',entry.id),{createdAt:serverTimestamp()});batch.delete(entry.ref);batch.set(doc(db,'users',entry.id,'children',user.uid),{createdAt:serverTimestamp()});await batch.commit();line.remove();message('Encarregado autorizado.',true)
+   }catch(e){yes.disabled=false;no.disabled=false;message(authError(e))}};
+   no.onclick=async()=>{if(!confirm('Recusar este pedido?'))return;try{await deleteDoc(entry.ref);line.remove();message('Pedido recusado.',true)}catch(e){message(authError(e))}};
+   line.append(name,yes,no);area.append(line);
+  }
+ }catch(e){area.textContent='Não foi possível carregar pedidos: '+authError(e)}
+}
+async function epFamilyPhoto(file,targetId){
+ if(!file)return;
+ if(!('BarcodeDetector' in window)){message('A leitura de fotografias QR não é suportada neste navegador. Introduz o código manualmente.');return}
+ try{
+  const bitmap=await createImageBitmap(file),detector=new BarcodeDetector({formats:['qr_code']});
+  const codes=await detector.detect(bitmap);bitmap.close?.();
+  const id=codes.map(x=>String(x.rawValue||'').trim()).find(epUidOK);
+  if(!id)throw Error('Não foi encontrado um código de aluno válido na imagem.');
+  const input=document.getElementById(targetId);if(input)input.value=id;
+  message('Código identificado. Carrega em Pedir acesso.',true);
+ }catch(e){message('Não foi possível ler o QR da fotografia: '+(e.message||'erro de leitura'))}
 }
 async function epFamilyManage(){
  if(epIsGuardian()){epFamilyHome();return}
@@ -294,7 +377,7 @@ async function epFamilyManage(){
   document.getElementById('epbackfamily').onclick=epFamilyHome;
   const target=document.getElementById('epguardians');
   if(snap.empty){target.textContent='Ainda não autorizaste nenhuma conta.';return}
-  for(const d of snap.docs){const row=el('div');row.style='display:flex;align-items:center;gap:10px;margin:10px 0;overflow-wrap:anywhere';const code=el('span',{},d.id);code.style='flex:1;font-family:monospace;font-size:12px';const btn=el('button',{class:'epbtn',type:'button'},'Revogar');btn.onclick=async()=>{if(!confirm('Revogar o acesso desta conta?'))return;try{const {deleteDoc}=await import('https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js');await deleteDoc(doc(db,'users',user.uid,'guardians',d.id));row.remove();message('Acesso revogado.',true)}catch(e){message(authError(e))}};row.append(code,btn);target.append(row)}
+  for(const d of snap.docs){const row=el('div');row.style='display:flex;align-items:center;gap:10px;margin:10px 0;overflow-wrap:anywhere';const code=el('span',{},d.id);code.style='flex:1;font-family:monospace;font-size:12px';const btn=el('button',{class:'epbtn',type:'button'},'Revogar');btn.onclick=async()=>{if(!confirm('Revogar o acesso desta conta?'))return;try{const {deleteDoc}=await import('https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js');const batch=writeBatch(db);batch.delete(doc(db,'users',user.uid,'guardians',d.id));batch.delete(doc(db,'users',d.id,'children',user.uid));await batch.commit();row.remove();message('Acesso revogado.',true)}catch(e){message(authError(e))}};row.append(code,btn);target.append(row)}
  }catch(e){show('<p>'+esc(authError(e))+'</p><button class="epbtn" id="epbackfamily">Voltar</button>','Erro');document.getElementById('epbackfamily').onclick=epFamilyHome}
 }
 async function epFamilyReport(id){
@@ -305,6 +388,7 @@ async function epFamilyReport(id){
   const [pSnap,hSnap]=await Promise.all([getDoc(doc(db,'users',id)),getDocs(query(collection(db,'users',id,'history'),orderBy('date','desc'),limit(500)))]);
   if(!pSnap.exists())throw Error('Não foi possível encontrar o perfil autorizado.');
   epFamilyRemember(id);
+  if(epIsGuardian())epGuardianDashboard();
   const student=pSnap.data(),items=hSnap.docs.map(x=>x.data());
   const percentages=items.map(x=>{const t=String(x.score||'');const m=t.match(/(\d+(?:[.,]\d+)?)\s*%/);if(m)return Number(m[1].replace(',','.'));const a=t.match(/(\d+)\s*\/\s*(\d+)/);return a&&Number(a[2])?100*Number(a[1])/Number(a[2]):null}).filter(x=>x!==null);
   const avg=percentages.length?Math.round(percentages.reduce((a,b)=>a+b,0)/percentages.length)+'%':'—';
@@ -322,6 +406,42 @@ async function epFamilyReport(id){
 }
 epFamilyButton.onclick=epFamilyHome;
 
+// V54.3: Exclusive guardian home. Child data is read only after Firestore authorization.
+const epGuardianStyles=el('style');epGuardianStyles.textContent=`body.epguardian-mode header,body.epguardian-mode main> :not(#epguardianhome){display:none!important}body.epguardian-mode #epbar #ephbtn,body.epguardian-mode #epbar #epavbtn,body.epguardian-mode #epbar #epprogressbtn,body.epguardian-mode #epbar #eprecommendbtn,body.epguardian-mode #epbar #eprankingbtn{display:none!important}#epguardianhome{display:block!important;max-width:1000px;margin:24px auto;background:#fff;border-radius:18px;padding:clamp(18px,4vw,32px);box-shadow:0 2px 14px #16365712}#epguardianhome .epgcards{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:12px;margin:18px 0}#epguardianhome .epgstat{background:#edf5ff;padding:18px;border-radius:14px}#epguardianhome .epgstat strong{font-size:24px;display:block;margin-top:7px}#epguardianhome .epgchild{border:1px solid #d7e4f3;border-radius:13px;padding:15px;margin:12px 0}#epguardianhome .epgchild button{background:#2066b2;color:#fff;border:0;border-radius:9px;padding:11px 15px;cursor:pointer}#epguardianhome table{width:100%;border-collapse:collapse}#epguardianhome th,#epguardianhome td{padding:11px 7px;border-bottom:1px solid #e3eaf3;text-align:left}#epguardianhome .epgmuted{color:#61758e}#epguardianhome .epgerror{color:#a32929}`;
+document.head.appendChild(epGuardianStyles);
+function epGuardianHomeShell(){
+ document.body.classList.add('epguardian-mode');
+ let main=document.querySelector('main');if(!main){main=el('main');document.body.appendChild(main)}
+ let panel=document.getElementById('epguardianhome');if(!panel){panel=el('section',{id:'epguardianhome'});main.prepend(panel)}
+ return panel;
+}
+function epGuardianDate(x){try{return new Date(x).toLocaleDateString('pt-PT')}catch{return '—'}}
+async function epGuardianDashboard(){
+ if(!user||!epIsGuardian())return;
+ const panel=epGuardianHomeShell();
+ panel.innerHTML='<h1>👨‍👩‍👧 Painel da Família</h1><p class="epgmuted">Acompanha apenas os alunos que autorizaram a tua conta. Não podes responder a fichas nem alterar os resultados.</p><div class="epgcards" id="epgtotals"></div><h2>🏆 Ranking dos meus filhos</h2><div id="epgranking">A carregar...</div><h2>Os meus filhos</h2><div id="epgchildren">A carregar...</div><div class="epactions"><button class="epbtn primary" id="epgadd">Associar aluno por código ou QR</button><button class="epbtn" id="epgrefresh">Atualizar dados</button></div><p class="ephelp">Os alunos autorizados ficam associados à tua conta. Cada acesso é validado pelo Firebase.</p>';
+ panel.querySelector('#epgadd').onclick=epFamilyHome;
+ panel.querySelector('#epgrefresh').onclick=epGuardianDashboard;
+ let ids=epFamilySaved();try{const linked=await getDocs(collection(db,'users',user.uid,'children'));ids=[...new Set([...ids,...linked.docs.map(d=>d.id)])]}catch(e){console.warn('Estuda+ children:',e)}const rows=[];const errors=[];
+ for(const id of ids){
+  try{
+   const [ps,hs]=await Promise.all([getDoc(doc(db,'users',id)),getDocs(query(collection(db,'users',id,'history'),orderBy('date','desc'),limit(500)))]);
+   if(!ps.exists())continue;
+   const p=ps.data(),items=hs.docs.map(d=>d.data());
+   const pct=items.map(x=>{const t=String(x.score||'');const m=t.match(/(\d+(?:[.,]\d+)?)\s*%/);if(m)return Number(m[1].replace(',','.'));const f=t.match(/(\d+)\s*\/\s*(\d+)/);return f&&+f[2]?100*+f[1]/+f[2]:null}).filter(x=>x!==null);
+   rows.push({id,name:String(p.name||'Aluno'),year:String(p.schoolYear||'Ano não definido'),points:Number(p.points||0),completed:Number(p.completed||items.length),avg:pct.length?Math.round(pct.reduce((a,b)=>a+b,0)/pct.length):null,items});
+  }catch(e){errors.push(id);}
+ }
+ rows.sort((a,b)=>b.points-a.points||b.completed-a.completed);
+ const total=rows.reduce((a,b)=>a+b.points,0),done=rows.reduce((a,b)=>a+b.completed,0);
+ panel.querySelector('#epgtotals').innerHTML=[['Filhos associados',rows.length],['Pontos acumulados',total.toLocaleString('pt-PT')],['Fichas realizadas',done]].map(([t,v])=>'<div class="epgstat"><span>'+esc(t)+'</span><strong>'+esc(v)+'</strong></div>').join('');
+ panel.querySelector('#epgranking').innerHTML=rows.length?'<div style="overflow-x:auto"><table><thead><tr><th>Posição</th><th>Aluno</th><th>Pontos</th><th>Fichas</th></tr></thead><tbody>'+rows.map((r,i)=>'<tr><td>'+(i+1)+'.º</td><td>'+esc(r.name)+'</td><td>'+r.points.toLocaleString('pt-PT')+'</td><td>'+r.completed+'</td></tr>').join('')+'</tbody></table></div>':'<p class="epgmuted">Ainda não tens alunos associados neste dispositivo.</p>';
+ panel.querySelector('#epgchildren').innerHTML=rows.map(r=>'<div class="epgchild"><h3>'+esc(r.name)+' · '+esc(r.year)+'</h3><p>'+r.completed+' fichas realizadas · '+r.points.toLocaleString('pt-PT')+' pontos · Média '+(r.avg===null?'—':r.avg+'%')+'</p><p class="epgmuted">Última ficha: '+(r.items.length?esc(epGuardianDate(r.items[0].date)):'—')+'</p><button type="button" data-epgchild="'+esc(r.id)+'">Ver resultados e evolução</button></div>').join('')||'<p class="epgmuted">Digitaliza o QR do aluno e envia um pedido. O aluno poderá autorizar na sua conta.</p>';
+ panel.querySelectorAll('[data-epgchild]').forEach(b=>b.onclick=()=>epFamilyReport(b.dataset.epgchild));
+ if(errors.length){const warning=el('p',{class:'epgerror'});warning.textContent='Não foi possível consultar '+errors.length+' aluno(s). Confirma que a autorização continua ativa.';panel.appendChild(warning)}
+}
+
+
 rankingPanel();
 const epProgressButton=el('button',{id:'epprogressbtn',type:'button'},'🌟 Conquistas');bar.querySelector('#ephbtn').before(epProgressButton);epProgressButton.onclick=async()=>{if(!user)return;try{await loadHistory();epProgressView()}catch(e){show('<p>'+esc(authError(e))+'</p>','Erro nas conquistas')}};
 bar.querySelector('#ephbtn').onclick=async()=>{if(!user)return;try{await loadHistory();historyView()}catch(e){show('<p>'+esc(authError(e))+'</p><button class="epbtn" id="epclose">Fechar</button>','Erro no histórico');document.getElementById('epclose').onclick=hide}};
@@ -329,5 +449,5 @@ bar.querySelector('#epavbtn').onclick=()=>{if(user)editor()};
 bar.querySelector('#eplogout').onclick=async()=>{if(isQuiz&&started&&!recorded&&!confirm('O teste atual não será guardado. Queres sair?'))return;stopClock();if(user){try{sessionStorage.removeItem('ep_welcomed_'+user.uid)}catch(e){}}await signOut(auth);location.replace(new URL('./',import.meta.url).href)};
 // Block all interaction until Firebase establishes an authenticated session.
 show('<div class="epbook" aria-hidden="true"><span class="epcover"></span><span class="epleft"></span><span class="epright"></span><span class="eppage"></span><span class="eppage"></span><span class="eppage"></span></div><p style="text-align:center">'+(isQuiz?'A preparar a tua ficha…':'A entrar na tua conta…')+'</p>','📚 Estuda+');
-async function initSession(u){if(u&&user&&u.uid!==user.uid){location.replace(new URL('./',import.meta.url).href);return}user=u;profile=null;history=[];stopClock();started=0;recorded=false;if(!u){updateBar();authView();return}try{profile=await ensureProfile(u);updateBar();await loadHistory();hide();if(isQuiz)await checkDailyLock();if(!dailyLocked)startClock();welcomeUser();loadRanking()}catch(e){show('<p>Não foi possível carregar o perfil: '+esc(authError(e))+'</p><div class="epactions"><button class="epbtn" id="epretry">Tentar novamente</button><button class="epbtn" id="epsignout">Sair</button></div>','Erro de ligação');document.getElementById('epretry').onclick=()=>location.reload();document.getElementById('epsignout').onclick=()=>signOut(auth)}}
+async function initSession(u){if(u&&user&&u.uid!==user.uid){location.replace(new URL('./',import.meta.url).href);return}user=u;profile=null;history=[];stopClock();started=0;recorded=false;if(!u){document.body.classList.remove('epguardian-mode');updateBar();authView();return}try{profile=await ensureProfile(u);updateBar();if(epIsGuardian()){const root=new URL('./',import.meta.url);if(location.pathname!==root.pathname){location.replace(root.href);return}hide();await epGuardianDashboard();return}document.body.classList.remove('epguardian-mode');await loadHistory();hide();if(isQuiz)await checkDailyLock();if(!dailyLocked)startClock();welcomeUser();loadRanking()}catch(e){show('<p>Não foi possível carregar o perfil: '+esc(authError(e))+'</p><div class="epactions"><button class="epbtn" id="epretry">Tentar novamente</button><button class="epbtn" id="epsignout">Sair</button></div>','Erro de ligação');document.getElementById('epretry').onclick=()=>location.reload();document.getElementById('epsignout').onclick=()=>signOut(auth)}}
 onAuthStateChanged(auth,u=>{if(!creatingAccount)initSession(u)});
