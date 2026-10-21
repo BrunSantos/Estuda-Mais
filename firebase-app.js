@@ -26,7 +26,7 @@ const bootScreen=document.getElementById('epboot');if(bootScreen)bootScreen.remo
 function message(t,good=false){msg.style.color=good?'#087544':'#a32929';msg.textContent=t}
 function show(html,title){overlay.style.display='flex';overlay.querySelector('#eptitle').textContent=title;content.innerHTML=html;message('')}
 function hide(){overlay.style.display='none';message('')}
-function authError(e){const codes={'auth/email-already-in-use':'Esse email já está registado.','auth/invalid-email':'O email não é válido.','auth/weak-password':'Escolhe uma password mais segura.','auth/invalid-credential':'Email ou password incorretos.','auth/too-many-requests':'Demasiadas tentativas. Experimenta mais tarde.','auth/operation-not-allowed':'Ativa Email/Password no Firebase Authentication.','auth/network-request-failed':'Falha de ligação. Verifica a internet.','permission-denied':'Acesso negado. Publica as regras do Firestore incluídas no ZIP.'};return codes[e.code]||e.message||'Não foi possível concluir a operação.'}
+function authError(e){const codes={'auth/email-already-in-use':'Esse email já está registado.','auth/invalid-email':'O email não é válido.','auth/weak-password':'Escolhe uma password mais segura.','auth/invalid-credential':'Email ou password incorretos.','auth/too-many-requests':'Demasiadas tentativas. Experimenta mais tarde.','auth/operation-not-allowed':'Ativa Email/Password no Firebase Authentication.','auth/network-request-failed':'Falha de ligação. Verifica a internet.','permission-denied':'Acesso negado pelas regras do Firestore.'};return codes[e.code]||e.message||'Não foi possível concluir a operação.'}
 function authView(mode='login'){
  const reg=mode==='register',reset=mode==='reset';
  show('<form id="epform">'+(reg?'<label>Nome ou pseudónimo<input id="epname" maxlength="32" autocomplete="nickname" required></label>':'')+'<label>Email<input id="epemail" type="email" autocomplete="email" required></label>'+(reset?'':'<label>Password<input id="eppass" type="password" minlength="6" autocomplete="'+(reg?'new-password':'current-password')+'" required></label>')+(reg?'<label>Tipo de conta<select id="epaccounttype" style="box-sizing:border-box;width:100%;padding:12px;margin:6px 0 12px"><option value="student">Aluno</option><option value="guardian">Encarregado de educação</option></select></label><label id="epyearwrap">Ano de escolaridade<select id="epyear" required style="box-sizing:border-box;width:100%;padding:12px;border:1px solid #adbed4;border-radius:9px;font:16px system-ui;margin:6px 0 12px">'+yearOptions('')+'</select></label>':'')+(reg?'<label style="font-weight:400"><input type="checkbox" id="epconsent" required> Confirmo que sou o encarregado de educação ou tenho autorização para criar esta conta.</label><p class="ephelp">Não uses o nome completo da criança. O ranking é opcional e vem desativado.</p>':'')+'<div class="epactions"><button class="epbtn primary" type="submit">'+(reg?'Criar conta':reset?'Enviar email de recuperação':'Entrar')+'</button><button class="epbtn" type="button" id="epswitchmode">'+(reg?'Já tenho conta':reset?'Voltar ao login':'Criar conta')+'</button>'+(reg||reset?'':'<button class="epbtn" type="button" id="epforgot">Esqueci-me da password</button>')+'</div></form>',reg?'📝 Criar conta no Estuda+':reset?'🔑 Recuperar password':'🔐 Entrar no Estuda+');
@@ -313,7 +313,13 @@ function epFamilyHome(){
  const savedHtml=saved.length?'<h3>Alunos consultados anteriormente</h3><p class="ephelp">Esta lista é guardada neste dispositivo. A autorização é verificada em cada consulta.</p><div id="epfamilysaved"></div>':'';
  const parentHtml=savedHtml+'<h3>Pedir acesso a um aluno</h3><p class="ephelp">Digitaliza o QR do aluno ou introduz o código. O aluno receberá um pedido para aceitar ou recusar.</p><label>Código do aluno<input id="epchilduid" placeholder="Colar código do aluno" autocomplete="off" spellcheck="false"></label><div class="epactions"><button class="epbtn" type="button" id="epscanchild">📷 Abrir câmara</button><button class="epbtn" type="button" id="epphoto">📁 Ler fotografia QR</button><input id="epphotofile" type="file" accept="image/*" style="display:none"><button class="epbtn primary" type="button" id="epviewchild">Pedir acesso</button></div>';
  show('<div style="display:flex;justify-content:flex-end;position:sticky;top:-22px;background:white;padding:6px 0;z-index:2"><button class="epbtn" type="button" id="epfamilytopclose" aria-label="Fechar janela">✕ Fechar</button></div>'+common+(parent?parentHtml:studentHtml)+'<div class="epactions"><button class="epbtn" id="epfamilyclose">Fechar</button></div>','👨‍👩‍👧 Área da família');
- if(!parent){epFamilyQr(user.uid);document.getElementById('epcopyuid').onclick=async()=>{try{await navigator.clipboard.writeText(user.uid);message('Código copiado.',true)}catch(e){message('Seleciona o código escrito e copia-o manualmente.')}};}
+ if(!parent){epFamilyQr(user.uid);document.getElementById('epcopyuid').onclick=async()=>{
+   const btn=document.getElementById('epcopyuid');
+   try{if(!navigator.clipboard?.writeText)throw Error('Clipboard indisponível');await navigator.clipboard.writeText(user.uid);
+    btn.textContent='✓ Código copiado!';epFamilyToast('✓ Código do aluno copiado!');
+   }catch(e){btn.textContent='Não foi possível copiar';epFamilyToast('Seleciona o código apresentado e copia-o manualmente.');}
+   setTimeout(()=>{if(btn.isConnected)btn.textContent='Copiar o meu código'},3500);
+  };}
  document.getElementById('epfamilytopclose').onclick=()=>{hide();if(epIsGuardian())epGuardianDashboard()};
  document.getElementById('epfamilyclose').onclick=()=>{hide();if(epIsGuardian())epGuardianDashboard()};
  if(parent){
@@ -369,13 +375,19 @@ async function epFamilyPending(){
      // Evita fazer set() sobre documentos existentes: as regras só permitem create.
      const guardianRef=doc(db,'users',user.uid,'guardians',entry.id);
      const childRef=doc(db,'users',entry.id,'children',user.uid);
-     const guardianExists=(await getDoc(guardianRef)).exists();
-     const childExists=(await getDoc(childRef)).exists();
-     if(!guardianExists || !childExists){
-      const batch=writeBatch(db);
-      if(!guardianExists)batch.set(guardianRef,{createdAt:serverTimestamp()});
-      if(!childExists)batch.set(childRef,{createdAt:serverTimestamp()});
-      await batch.commit();
+     // Separar as operações permite identificar exatamente a regra que bloqueia.
+     status.textContent='A verificar a autorização existente…';
+     let guardianExists;
+     try{guardianExists=(await getDoc(guardianRef)).exists()}catch(e){throw Object.assign(new Error('Falha ao consultar guardians: '+(e.message||e)),{code:e.code||'guardian-read'})}
+     if(!guardianExists){
+      status.textContent='A guardar autorização na conta do aluno…';
+      try{await setDoc(guardianRef,{createdAt:serverTimestamp()})}catch(e){throw Object.assign(new Error('Falha ao criar guardians: '+(e.message||e)),{code:e.code||'guardian-write'})}
+     }
+     status.textContent='A associar aluno à conta do encarregado…';
+     let childExists;
+     try{childExists=(await getDoc(childRef)).exists()}catch(e){throw Object.assign(new Error('Falha ao consultar children: '+(e.message||e)),{code:e.code||'children-read'})}
+     if(!childExists){
+      try{await setDoc(childRef,{createdAt:serverTimestamp()})}catch(e){throw Object.assign(new Error('Falha ao criar children: '+(e.message||e)),{code:e.code||'children-write'})}
      }
      clearTimeout(slow);
      status.style.color='#087544';status.textContent='✓ Autorização guardada com sucesso.';

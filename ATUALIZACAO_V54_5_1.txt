@@ -1,0 +1,4 @@
+Estuda+ v54.5.1 — Diagnóstico de autorização e confirmação de cópia.
+A autorização é verificada e gravada em etapas, indicando exatamente qual falhou. A mensagem de cópia aparece junto ao botão.
+Não são necessárias novas regras do Firestore nesta atualização.
+Não foi possível validar com contas reais do Firebase.
