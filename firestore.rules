@@ -31,7 +31,9 @@ service cloud.firestore {
     allow update: if false;
    }
    match /children/{studentUid} {
-    allow get, list: if owner(uid);
+    allow get: if owner(uid) || (signedIn() && request.auth.uid == studentUid
+      && exists(/databases/$(database)/documents/users/$(studentUid)/guardians/$(uid)));
+    allow list: if owner(uid);
     allow create: if signedIn() && request.auth.uid == studentUid
       && get(/databases/$(database)/documents/users/$(uid)).data.get('role','student') == 'guardian'
       && existsAfter(/databases/$(database)/documents/users/$(studentUid)/guardians/$(uid))

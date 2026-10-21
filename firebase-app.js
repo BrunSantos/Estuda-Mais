@@ -365,10 +365,18 @@ async function epFamilyPending(){
     let waiting;
     const slow=setTimeout(()=>{waiting=true;status.textContent='A operação está a demorar. Verifica a ligação à Internet. Não voltes a autorizar enquanto estiver pendente.'},12000);
     try{
-     const batch=writeBatch(db);
-     batch.set(doc(db,'users',user.uid,'guardians',entry.id),{createdAt:serverTimestamp()});
-     batch.set(doc(db,'users',entry.id,'children',user.uid),{createdAt:serverTimestamp()});
-     await batch.commit();
+     // As associações antigas podem já conter um dos documentos.
+     // Evita fazer set() sobre documentos existentes: as regras só permitem create.
+     const guardianRef=doc(db,'users',user.uid,'guardians',entry.id);
+     const childRef=doc(db,'users',entry.id,'children',user.uid);
+     const guardianExists=(await getDoc(guardianRef)).exists();
+     const childExists=(await getDoc(childRef)).exists();
+     if(!guardianExists || !childExists){
+      const batch=writeBatch(db);
+      if(!guardianExists)batch.set(guardianRef,{createdAt:serverTimestamp()});
+      if(!childExists)batch.set(childRef,{createdAt:serverTimestamp()});
+      await batch.commit();
+     }
      clearTimeout(slow);
      status.style.color='#087544';status.textContent='✓ Autorização guardada com sucesso.';
      epFamilyToast('✓ Autorização confirmada. O encarregado já pode ver os teus resultados.');
