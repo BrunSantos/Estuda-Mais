@@ -1,0 +1,18 @@
+ESTUDA+ V52 — CONQUISTAS, DESAFIOS E EVOLUÇÃO PESSOAL
+
+Base: versão 51.5 completa, incluindo as alterações às fichas de Ciências.
+
+NOVO:
+- Botão «🌟 Conquistas» na barra superior, visível depois de iniciar sessão.
+- 7 medalhas simbólicas, calculadas a partir do histórico guardado.
+- 3 desafios diários, reiniciados segundo a data de Portugal.
+- Estatísticas de fichas, média de acertos, sequência de dias e comparação dos últimos resultados.
+- Sem pontos adicionais por medalhas ou desafios; ranking e bloqueio diário mantidos.
+
+IMPORTANTE:
+- Os indicadores usam apenas os 500 resultados mais recentes do histórico (limite atual).
+- A precisão das percentagens depende do formato do resultado guardado nas fichas.
+- Não requer alterações às regras Firestore.
+- Testar primeiro com uma conta real no Safari antes de publicar.
+
+PUBLICAÇÃO: substituir o conteúdo do repositório, sem apagar a pasta .git; Commit to main > Push origin.

@@ -16,6 +16,7 @@ const fmt=n=>{n=Math.max(0,Math.floor(n));return [Math.floor(n/3600),Math.floor(
 const el=(tag,attrs={},text='')=>{const e=document.createElement(tag);for(const [k,v] of Object.entries(attrs))e.setAttribute(k,v);if(text)e.textContent=text;return e};
 const css=el('style');css.textContent=`#epboot{position:fixed;inset:0;z-index:2147483000;background:#edf4fc;display:flex;align-items:center;justify-content:center;padding:18px;font-family:system-ui,-apple-system,sans-serif;color:#19314f}#epboot>div{width:min(460px,100%);background:white;padding:28px;border-radius:20px;box-shadow:0 10px 40px #1234;text-align:center}#epboot h2{margin-top:0}#epboot p{line-height:1.5}#epboot a{color:#1769bd}#epbooterror{font-size:14px;color:#9b2c2c}#epboot button{background:#1b65b4;color:white;border:0;padding:11px 17px;border-radius:9px;cursor:pointer}#epboot button[hidden]{display:none}.epbook{position:relative;width:100px;height:76px;margin:8px auto 22px;perspective:500px;filter:drop-shadow(0 7px 6px #193e7033)}.epbook .epcover{position:absolute;inset:5px 3px 0;border-radius:4px 9px 9px 4px;background:#2366b1;transform:skewY(-3deg)}.epbook .epleft,.epbook .epright{position:absolute;top:10px;bottom:8px;width:47px;background:#fffef6;border:2px solid #c8d9e8}.epbook .epleft{left:5px;border-radius:8px 2px 2px 5px;transform:skewY(7deg)}.epbook .epright{right:5px;border-radius:2px 8px 5px 2px;transform:skewY(-7deg)}.epbook .eppage{position:absolute;top:11px;left:50%;width:44px;height:57px;border-radius:2px 7px 6px 2px;background:linear-gradient(90deg,#dce9f5,#fffdf5 18%,#fffdf5 90%,#e2ebf3);border:1px solid #cbdbe9;transform-origin:left center;animation:epflip 1.65s ease-in-out infinite}.epbook .eppage:nth-last-child(2){animation-delay:.36s}.epbook .eppage:last-child{animation-delay:.72s}@keyframes epflip{0%,13%{transform:rotateY(0deg)}60%,100%{transform:rotateY(-178deg)}}@media(prefers-reduced-motion:reduce){.epbook .eppage{animation:none}}#epbar{position:sticky;top:0;z-index:10000;background:#102f54;color:white;padding:10px 14px;display:flex;gap:9px;align-items:center;flex-wrap:wrap;font:600 14px system-ui}#epbar button,.epbtn{border:0;border-radius:9px;padding:10px 13px;background:#dbeafe;color:#163b63;font:600 14px system-ui;cursor:pointer}#epbar .epgrow{flex:1}#epbar .epclock{background:white;color:#102f54;padding:9px 12px;border-radius:9px;font-variant-numeric:tabular-nums}#epoverlay{position:fixed;inset:0;background:#071a32d9;z-index:100001;display:flex;align-items:center;justify-content:center;padding:12px;font:15px system-ui;color:#19314f}#epoverlay .epbox{background:#fff;width:min(660px,100%);max-height:95vh;overflow:auto;padding:22px;border-radius:18px;box-shadow:0 15px 45px #0004}#epoverlay input:not([type=checkbox]){box-sizing:border-box;width:100%;padding:12px;border:1px solid #adbed4;border-radius:9px;font:16px system-ui;margin:6px 0 12px}#epoverlay label{display:block;font-weight:650}#epoverlay .epbtn.primary{background:#2066b2;color:white}#epoverlay .epactions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}#epmessage{min-height:25px;color:#a32929;font-weight:600}#epoverlay .ephelp{color:#61758e;font-size:13px}#epavatargrid{display:grid;grid-template-columns:190px minmax(0,1fr);gap:12px;max-height:410px}#epavatarpreview{display:flex;align-items:center;justify-content:center;background:#e8f2ff;border-radius:14px;min-height:280px}#epavatarfields{overflow:auto;max-height:410px}#epavatarfields fieldset{border:1px solid #d7e2ee;border-radius:12px;margin:0 0 10px;padding:10px}#epavatarfields legend{font-weight:700}#epavatarfields button{border:2px solid #d6e1ed;border-radius:9px;padding:7px;background:white;cursor:pointer;margin:3px;font:13px system-ui}#epavatarfields button[aria-pressed=true]{border-color:#1668bd;background:#e6f1ff}#epavatarfields button.epcolor{width:33px;height:33px;border-radius:50%}#epranking,#ephistory{font:15px system-ui}#ephistory table,#epranking table{width:100%;border-collapse:collapse}#ephistory th,#ephistory td,#epranking th,#epranking td{padding:9px 5px;text-align:left;border-bottom:1px solid #e1e8f0}#ephistory{overflow:auto}#epbar svg{vertical-align:middle}@media(max-width:560px){#epavatargrid{grid-template-columns:1fr;grid-template-rows:190px minmax(0,1fr);max-height:55vh}#epavatarpreview{min-height:0}#epavatarpreview svg{height:185px;width:auto}#epavatarfields{max-height:100%}}`;
 css.textContent+=`#epwelcome{position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:2147483001;width:min(92vw,540px);font:16px system-ui,-apple-system,sans-serif;color:#19314f;animation:epwelcome-in .35s ease-out}#epwelcome .epwelcome-card{position:relative;background:#fff;border:2px solid #d8e8fa;border-radius:18px;box-shadow:0 12px 35px #142e5266;padding:22px 44px 20px 18px;display:flex;gap:14px;align-items:center}#epwelcome .epwelcome-avatar svg{width:70px;height:86px}#epwelcome strong{font-size:19px}#epwelcome p{margin:8px 0 0;line-height:1.45}#epwelcome .epwelcome-close{position:absolute;right:10px;top:8px;background:transparent;border:0;font-size:27px;color:#19314f;cursor:pointer}@keyframes epwelcome-in{from{opacity:0;transform:translate(-50%,-15px)}to{opacity:1;transform:translate(-50%,0)}}@media(prefers-reduced-motion:reduce){#epwelcome{animation:none}}`;
+css.textContent+=' .epstat{background:#eff5ff;border-radius:12px;padding:14px;text-align:center;display:flex;flex-direction:column;gap:5px}.epstat strong{font-size:25px;color:#164b88}.epstat span{font-size:12px;color:#506681}';
 document.head.appendChild(css);
 const bar=el('div',{id:'epbar'});bar.innerHTML='<strong>📚 Estuda+</strong><span id="epwho"></span><span class="epgrow"></span>'+(isQuiz?'<span class="epclock" id="eptimer">⏱ 00:00:00</span>':'')+'<button id="ephbtn" type="button">📋 Histórico</button><button id="epavbtn" type="button">🎨 Avatar</button><button id="eplogout" type="button">Sair</button>';
 document.body.prepend(bar);
@@ -162,8 +163,65 @@ if(isQuiz){
  }
 }
 if(isQuiz)document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const str=((b.textContent||'')+' '+(b.id||'')+' '+(b.getAttribute('onclick')||'')).toLowerCase();if(/corrig|verificar|terminar|concluir|check/.test(str))setTimeout(detectResult,180);if(/repetir|reiniciar|reset/.test(str)&&!dailyLocked){recorded=false;stopClock();started=0;setTimeout(startClock,50)}},true);
+// V52 — painel de progresso calculado apenas a partir do histórico confirmado no Firestore.
+function epLocalDay(value){
+ const d=new Date(value);if(Number.isNaN(d.getTime()))return '';
+ return new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Lisbon',year:'numeric',month:'2-digit',day:'2-digit'}).format(d);
+}
+function epScorePercent(value){
+ const m=String(value||'').match(/(\d+)\s*(?:de|\/)\s*(\d+)/i);
+ if(m&&Number(m[2])>0)return Math.round(Number(m[1])*100/Number(m[2]));
+ const pct=String(value||'').match(/(\d{1,3})\s*%/);return pct?Math.min(100,Number(pct[1])):null;
+}
+function epProgressView(){
+ const valid=history.filter(x=>x&&x.date&&!Number.isNaN(new Date(x.date).getTime()));
+ const today=portugalDay(),todayItems=valid.filter(x=>epLocalDay(x.date)===today);
+ const uniqueToday=new Set(todayItems.map(x=>x.file||x.title));
+ const subjectsToday=new Set(todayItems.map(x=>x.subject).filter(Boolean));
+ const days=[...new Set(valid.map(x=>epLocalDay(x.date)).filter(Boolean))].sort().reverse();
+ let streak=0;let cursor=new Date();
+ // A série mantém-se quando o aluno ainda não estudou hoje, mas estudou ontem.
+ if(!days.includes(today))cursor.setDate(cursor.getDate()-1);
+ for(let i=0;i<365;i++){
+  const key=epLocalDay(cursor.toISOString());if(!days.includes(key))break;
+  streak++;cursor.setDate(cursor.getDate()-1);
+ }
+ const percent=valid.map(x=>epScorePercent(x.score)).filter(x=>x!==null);
+ const avg=percent.length?Math.round(percent.reduce((a,b)=>a+b,0)/percent.length):null;
+ const newest=percent.slice(0,Math.min(5,percent.length));
+ const older=percent.slice(5,10);
+ const recentAvg=newest.length?Math.round(newest.reduce((a,b)=>a+b,0)/newest.length):null;
+ const olderAvg=older.length?Math.round(older.reduce((a,b)=>a+b,0)/older.length):null;
+ const perfect=percent.filter(n=>n===100).length;
+ const awards=[
+  ['🌱','Primeira ficha',valid.length>=1],['📚','10 fichas realizadas',valid.length>=10],
+  ['🎯','50 fichas realizadas',valid.length>=50],['🏆','Resultado perfeito',perfect>=1],
+  ['🔥','3 dias consecutivos',streak>=3],['⭐','7 dias consecutivos',streak>=7],
+  ['🧠','5 fichas com 80% ou mais',percent.filter(n=>n>=80).length>=5]
+ ];
+ const tasks=[['Concluir 1 ficha',uniqueToday.size>=1,uniqueToday.size+'/1'],
+ ['Concluir 3 fichas diferentes',uniqueToday.size>=3,Math.min(uniqueToday.size,3)+'/3'],
+ ['Estudar 2 disciplinas',subjectsToday.size>=2,Math.min(subjectsToday.size,2)+'/2']];
+ const cards=awards.map(([icon,name,done])=>'<div style="border:1px solid #d6e3f3;border-radius:12px;padding:12px;background:'+(done?'#ecf9ee':'#f5f7fa')+'"><div style="font-size:26px">'+icon+'</div><strong>'+esc(name)+'</strong><div style="font-size:13px">'+(done?'✓ Conquistada':'Por conquistar')+'</div></div>').join('');
+ const tasksHtml=tasks.map(([name,done,progress])=>'<li style="margin:10px 0">'+(done?'✅':'⬜')+' '+esc(name)+' — '+progress+'</li>').join('');
+ const change=olderAvg===null?'Completa mais fichas para comparar dois grupos de resultados.':
+  (recentAvg>olderAvg?'📈 Melhoraste ':recentAvg<olderAvg?'📉 Diferença de ':'➡️ Mantiveste ') +
+  (recentAvg===olderAvg?'a tua média.':Math.abs(recentAvg-olderAvg)+' pontos percentuais face às cinco fichas anteriores.');
+ show('<p>As conquistas são simbólicas: não acrescentam pontos ao ranking. Os desafios reiniciam à meia-noite de Portugal.</p>'+
+ '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(125px,1fr));gap:10px;margin:14px 0">'+
+ '<div class="epstat"><strong>'+valid.length+'</strong><span>Fichas no histórico</span></div>'+
+ '<div class="epstat"><strong>'+(avg===null?'—':avg+'%')+'</strong><span>Média de acertos</span></div>'+
+ '<div class="epstat"><strong>'+streak+'</strong><span>Dias seguidos</span></div></div>'+
+ '<h3>🎯 Desafios de hoje</h3><ul style="padding-left:22px">'+tasksHtml+'</ul>'+
+ '<h3>🏅 Medalhas e conquistas</h3><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px">'+cards+'</div>'+
+ '<h3>📈 Evolução pessoal</h3><p>'+esc(change)+'</p>'+
+ '<p class="ephelp">Os cálculos usam até 500 resultados recentes do histórico. A média só inclui fichas cujo resultado permite identificar a percentagem. As medalhas são recalculadas a partir do histórico.</p>'+
+ '<div class="epactions"><button class="epbtn primary" id="epprogressclose">Fechar</button></div>', '🌟 As minhas conquistas');
+ document.getElementById('epprogressclose').onclick=hide;
+}
 function rankingPanel(){if(!/\/(?:index\.html)?$/.test(location.pathname))return;const main=document.querySelector('main');if(!main)return;const panel=el('section',{id:'epranking',class:'panel'});panel.innerHTML='<h2>🏆 Ranking dos alunos</h2><p>Participação voluntária. Apenas pseudónimos e avatares são visíveis aos utilizadores autenticados. Pontos por acertos e esforço; cada ficha conta uma vez por dia e pode voltar a dar pontos no dia seguinte.</p><div id="eprankingtable">A carregar...</div>';main.prepend(panel)}
 rankingPanel();
+const epProgressButton=el('button',{id:'epprogressbtn',type:'button'},'🌟 Conquistas');bar.querySelector('#ephbtn').before(epProgressButton);epProgressButton.onclick=async()=>{if(!user)return;try{await loadHistory();epProgressView()}catch(e){show('<p>'+esc(authError(e))+'</p>','Erro nas conquistas')}};
 bar.querySelector('#ephbtn').onclick=async()=>{if(!user)return;try{await loadHistory();historyView()}catch(e){show('<p>'+esc(authError(e))+'</p><button class="epbtn" id="epclose">Fechar</button>','Erro no histórico');document.getElementById('epclose').onclick=hide}};
 bar.querySelector('#epavbtn').onclick=()=>{if(user)editor()};
 bar.querySelector('#eplogout').onclick=async()=>{if(isQuiz&&started&&!recorded&&!confirm('O teste atual não será guardado. Queres sair?'))return;stopClock();if(user){try{sessionStorage.removeItem('ep_welcomed_'+user.uid)}catch(e){}}await signOut(auth);location.replace(new URL('./',import.meta.url).href)};
