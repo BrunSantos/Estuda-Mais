@@ -37,7 +37,8 @@ function avSvg(input,large=false){
  <linearGradient id="${id}shoe" x1="0" y1="0" x2="1" y2=".25"><stop stop-color="${a.shoes}"/><stop offset=".35" stop-color="${a.shoes}"/><stop offset="1" stop-color="${a.shoes}"/></linearGradient>
  <radialGradient id="${id}bg" cx=".5" cy=".28" r=".75"><stop stop-color="#fff" stop-opacity=".85"/><stop offset="1" stop-color="${a.background}"/></radialGradient>
  <filter id="${id}shadow" x="-30%" y="-30%" width="160%" height="180%"><feDropShadow dx="0" dy="4" stdDeviation="4" flood-opacity=".20"/></filter></defs>`);
- add(`<rect x="0" y="0" width="240" height="320" rx="20" fill="url(#${id}bg)"/>`);
+ // O fundo do avatar grande pertence ao painel de pré-visualização, não ao SVG.
+ if(!large) add(`<rect x="0" y="0" width="240" height="320" rx="20" fill="url(#${id}bg)"/>`);
  ellipse(120,299,72,9,'#263449','opacity=".18"');
  // Legs and sneakers with shading, all facing forward
  path('M80 207 L112 207 L111 278 Q111 284 105 286 L81 286 Q76 282 77 274Z',`url(#${id}pants)`,'stroke="#17213a" stroke-opacity=".14" stroke-width="1.5"');
