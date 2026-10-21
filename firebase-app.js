@@ -10,7 +10,7 @@ const yearOptions=selected=>'<option value="">Escolhe o ano</option>'+schoolYear
 const portugalDay=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Lisbon',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
 const quizKey=()=>Array.from(new TextEncoder().encode(location.pathname)).map(b=>b.toString(16).padStart(2,'0')).join('');
 let dailyLocked=false;
-const isQuiz=!!document.getElementById('result') && !!document.querySelector('button[onclick*="correct"], #check, button[onclick*="corrig"]');
+const isQuiz=!!document.getElementById('result') && !!document.querySelector('button[onclick*="correct"], #check, #finish, button[onclick*="corrig"]');
 let user=null,profile=null,history=[],ranking=[],unsubscribe=null,started=0,clock=null,recorded=false,creatingAccount=false,editorDraft={...defaultAvatar};
 const fmt=n=>{n=Math.max(0,Math.floor(n));return [Math.floor(n/3600),Math.floor(n%3600/60),n%60].map(x=>String(x).padStart(2,'0')).join(':')};
 const el=(tag,attrs={},text='')=>{const e=document.createElement(tag);for(const [k,v] of Object.entries(attrs))e.setAttribute(k,v);if(text)e.textContent=text;return e};
