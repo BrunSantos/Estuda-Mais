@@ -355,11 +355,36 @@ async function epFamilyPending(){
    const name=el('p',{},'O encarregado de educação '+String(entry.data().guardianName||'Conta desconhecida')+' pretende acompanhar os teus resultados.');
    const yes=el('button',{type:'button',class:'epbtn'},'✓ Autorizar');
    const no=el('button',{type:'button',class:'epbtn'},'✕ Recusar');no.style.marginLeft='8px';
-   yes.onclick=async()=>{if(!confirm('Autorizar '+entry.data().guardianName+' a consultar os teus resultados escolares?'))return;yes.disabled=true;no.disabled=true;try{
-    const batch=writeBatch(db);batch.set(doc(db,'users',user.uid,'guardians',entry.id),{createdAt:serverTimestamp()});batch.delete(entry.ref);batch.set(doc(db,'users',entry.id,'children',user.uid),{createdAt:serverTimestamp()});await batch.commit();line.remove();epFamilyToast('✓ Autorização concluída. O encarregado já pode consultar os teus resultados.');message('Encarregado autorizado com sucesso.',true);setTimeout(()=>{if(overlay.style.display!=='none' && document.getElementById('eppending'))hide()},1400)
-   }catch(e){yes.disabled=false;no.disabled=false;message('A autorização não foi guardada: '+authError(e));epFamilyToast('Não foi possível autorizar. Verifica o erro apresentado e as regras do Firebase.')}};
+   const status=el('p',{role:'status','aria-live':'polite'});status.style='margin:10px 0 0;color:#19314f;font-weight:600;white-space:pre-wrap';
+   yes.onclick=async()=>{
+    if(!confirm('Autorizar '+entry.data().guardianName+' a consultar os teus resultados escolares?'))return;
+    yes.disabled=true;no.disabled=true;
+    status.textContent='A guardar autorização no Firebase…';status.style.color='#19314f';
+    // Keep the authorization and the guardian's child link in one atomic write.
+    // Delete the request only after the authorization is confirmed.
+    let waiting;
+    const slow=setTimeout(()=>{waiting=true;status.textContent='A operação está a demorar. Verifica a ligação à Internet. Não voltes a autorizar enquanto estiver pendente.'},12000);
+    try{
+     const batch=writeBatch(db);
+     batch.set(doc(db,'users',user.uid,'guardians',entry.id),{createdAt:serverTimestamp()});
+     batch.set(doc(db,'users',entry.id,'children',user.uid),{createdAt:serverTimestamp()});
+     await batch.commit();
+     clearTimeout(slow);
+     status.style.color='#087544';status.textContent='✓ Autorização guardada com sucesso.';
+     epFamilyToast('✓ Autorização confirmada. O encarregado já pode ver os teus resultados.');
+     // A failure to clean up a request must never undo a successful authorization.
+     try{await deleteDoc(entry.ref)}catch(cleanupError){console.warn('Estuda+ pedido autorizado mas não removido:',cleanupError)}
+     line.remove();
+     setTimeout(()=>{if(overlay.style.display!=='none'&&document.getElementById('eppending'))hide()},1000);
+    }catch(e){
+     clearTimeout(slow);yes.disabled=false;no.disabled=false;
+     console.error('Estuda+ falha ao autorizar encarregado:',e);
+     status.style.color='#a32929';
+     status.textContent='Não foi possível guardar a autorização. '+authError(e)+' (código: '+String(e?.code||'não indicado')+'). Verifica se publicaste as regras firestore.rules da versão 54.4.';
+    }
+   };
    no.onclick=async()=>{if(!confirm('Recusar este pedido?'))return;try{await deleteDoc(entry.ref);line.remove();epFamilyToast('Pedido recusado. Não foi concedido acesso.');message('Pedido recusado.',true)}catch(e){message(authError(e))}};
-   line.append(name,yes,no);area.append(line);
+   line.append(name,yes,no,status);area.append(line);
   }
  }catch(e){area.textContent='Não foi possível carregar pedidos: '+authError(e)}
 }
