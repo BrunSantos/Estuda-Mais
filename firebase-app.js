@@ -307,19 +307,32 @@ function epFamilyHome(){
  if(!user)return;
  const parent=epIsGuardian();
  const intro=parent?'Consulta os resultados dos alunos que autorizaram a tua conta.':'Autoriza um encarregado de educação a consultar os teus resultados. Podes revogar o acesso a qualquer momento.';
- const common=parent?'<p>'+intro+'</p>':'<p>'+intro+'</p><section style="background:#f0f6ff;padding:16px;border-radius:12px;text-align:center"><strong>O meu código de conta</strong><p style="overflow-wrap:anywhere;font-family:monospace;user-select:all">'+esc(user.uid)+'</p><div id="epfamilyqr" style="display:flex;justify-content:center;min-height:210px;align-items:center"></div><p class="ephelp">Mostra este QR à outra pessoa ou partilha o código escrito.</p><button class="epbtn" id="epcopyuid">Copiar o meu código</button></section>';
+ const common=parent?'<p>'+intro+'</p>':'<p>'+intro+'</p><section style="background:#f0f6ff;padding:16px;border-radius:12px;text-align:center"><strong>O meu código de conta</strong><p style="overflow-wrap:anywhere;font-family:monospace;user-select:all">'+esc(user.uid)+'</p><div id="epfamilyqr" style="display:flex;justify-content:center;min-height:210px;align-items:center"></div><p class="ephelp">Mostra este QR à outra pessoa ou partilha o código escrito.</p><button class="epbtn" type="button" id="epcopyuid">Copiar o meu código</button><p id="epcopystatus" role="status" aria-live="polite" style="min-height:1.5em;margin:12px 0 0;font-weight:700"></p></section>';
  const studentHtml='<h3>Pedidos de acesso</h3><p class="ephelp">Os encarregados enviam o pedido através do teu QR. Só tu podes autorizar.</p><div id="eppending">A carregar pedidos…</div><div class="epactions"><button class="epbtn" type="button" id="epmanage">Gerir autorizações</button></div>';
  const saved=epFamilySaved();
  const savedHtml=saved.length?'<h3>Alunos consultados anteriormente</h3><p class="ephelp">Esta lista é guardada neste dispositivo. A autorização é verificada em cada consulta.</p><div id="epfamilysaved"></div>':'';
  const parentHtml=savedHtml+'<h3>Pedir acesso a um aluno</h3><p class="ephelp">Digitaliza o QR do aluno ou introduz o código. O aluno receberá um pedido para aceitar ou recusar.</p><label>Código do aluno<input id="epchilduid" placeholder="Colar código do aluno" autocomplete="off" spellcheck="false"></label><div class="epactions"><button class="epbtn" type="button" id="epscanchild">📷 Abrir câmara</button><button class="epbtn" type="button" id="epphoto">📁 Ler fotografia QR</button><input id="epphotofile" type="file" accept="image/*" style="display:none"><button class="epbtn primary" type="button" id="epviewchild">Pedir acesso</button></div>';
  show('<div style="display:flex;justify-content:flex-end;position:sticky;top:-22px;background:white;padding:6px 0;z-index:2"><button class="epbtn" type="button" id="epfamilytopclose" aria-label="Fechar janela">✕ Fechar</button></div>'+common+(parent?parentHtml:studentHtml)+'<div class="epactions"><button class="epbtn" id="epfamilyclose">Fechar</button></div>','👨‍👩‍👧 Área da família');
- if(!parent){epFamilyQr(user.uid);document.getElementById('epcopyuid').onclick=async()=>{
-   const btn=document.getElementById('epcopyuid');
-   try{if(!navigator.clipboard?.writeText)throw Error('Clipboard indisponível');await navigator.clipboard.writeText(user.uid);
-    btn.textContent='✓ Código copiado!';epFamilyToast('✓ Código do aluno copiado!');
-   }catch(e){btn.textContent='Não foi possível copiar';epFamilyToast('Seleciona o código apresentado e copia-o manualmente.');}
-   setTimeout(()=>{if(btn.isConnected)btn.textContent='Copiar o meu código'},3500);
-  };}
+ if(!parent){
+  epFamilyQr(user.uid);
+  const btn=document.getElementById('epcopyuid');
+  const status=document.getElementById('epcopystatus');
+  btn.onclick=async()=>{
+   btn.disabled=true;
+   status.textContent='A copiar…';status.style.color='#163b63';
+   try{
+    if(!navigator.clipboard || typeof navigator.clipboard.writeText!=='function')throw new Error('A cópia automática não está disponível neste navegador.');
+    await navigator.clipboard.writeText(user.uid);
+    btn.textContent='✓ Código copiado!';status.textContent='✓ Código copiado para a área de transferência.';status.style.color='#087544';
+   }catch(e){
+    btn.textContent='Copiar o meu código';status.textContent='Não foi possível copiar automaticamente. Seleciona o código acima e usa Copiar.';status.style.color='#a32929';
+   }finally{
+    btn.disabled=false;
+    clearTimeout(btn._epResetTimer);
+    btn._epResetTimer=setTimeout(()=>{if(btn.isConnected)btn.textContent='Copiar o meu código'},4500);
+   }
+  };
+ }
  document.getElementById('epfamilytopclose').onclick=()=>{hide();if(epIsGuardian())epGuardianDashboard()};
  document.getElementById('epfamilyclose').onclick=()=>{hide();if(epIsGuardian())epGuardianDashboard()};
  if(parent){
@@ -344,11 +357,30 @@ function epFamilyToast(text){
 // V54.4: requests are stored under the student, never disclose student details before approval.
 async function epFamilyRequest(id){
  if(!epIsGuardian()||!epUidOK(id)||id===user.uid){message('Introduz um código de aluno válido.');return}
+ const requestRef=doc(db,'users',id,'requests',user.uid);
  try{
-  await setDoc(doc(db,'users',id,'requests',user.uid),{guardianName:profile.name,createdAt:serverTimestamp()});
-  message('Pedido enviado. O aluno terá de o autorizar na sua conta.',true);
- }catch(e){message('Não foi possível enviar o pedido: '+authError(e))}
+  // A conta de aluno pode ser antiga; não é necessário que tenha o campo role.
+  // Consultar apenas o documento do pedido evita tentar atualizar um pedido existente.
+  let previous;
+  try{previous=await getDoc(requestRef)}catch(e){
+   console.error('Estuda+ não foi possível consultar o pedido:',e);
+   message('Não foi possível verificar pedidos anteriores ('+(e.code||'erro')+'). '+authError(e));return;
+  }
+  if(previous.exists()){
+   message('O pedido já foi enviado e está pendente de autorização na conta do aluno.',true);
+   epFamilyToast('Pedido já enviado. Aguarda a autorização do aluno.');return;
+  }
+  const guardianName=String(profile?.name||'').trim();
+  if(!guardianName){message('A conta do encarregado não tem um nome válido. Verifica o perfil.');return}
+  await setDoc(requestRef,{guardianName,createdAt:serverTimestamp()});
+  message('✓ Pedido enviado. O aluno pode autorizar na sua conta.',true);
+  epFamilyToast('✓ Pedido de acesso enviado.');
+ }catch(e){
+  console.error('Estuda+ falha ao enviar pedido familiar:',e);
+  message('Não foi possível enviar o pedido ('+(e.code||'erro')+'): '+authError(e)+'. Se as regras foram atualizadas, confirma que carregaste em Publish.');
+ }
 }
+
 async function epFamilyPending(){
  const area=document.getElementById('eppending');if(!area||epIsGuardian())return;
  try{

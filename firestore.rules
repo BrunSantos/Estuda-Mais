@@ -25,7 +25,7 @@ service cloud.firestore {
     allow create: if signedIn() && request.auth.uid == guardianUid && guardianUid != uid
       && get(/databases/$(database)/documents/users/$(guardianUid)).data.get('role','student') == 'guardian'
       && request.resource.data.keys().hasOnly(['guardianName','createdAt'])
-      && request.resource.data.guardianName == get(/databases/$(database)/documents/users/$(guardianUid)).data.name
+      && validName(request.resource.data.guardianName)
       && request.resource.data.createdAt == request.time;
     allow delete: if owner(uid);
     allow update: if false;
