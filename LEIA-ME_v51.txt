@@ -1,0 +1,11 @@
+ESTUDA+ V51 — COMPLETO
+
+Novidades: pontos por ficha por dia, bloqueio após conclusão no mesmo dia, mensagens de incentivo, ano escolar no registo e edição do perfil.
+
+IMPORTANTE: Publicar primeiro as regras firestore.rules no Firebase Console > Firestore Database > Rules > Publish. Só depois atualizar o GitHub Pages.
+
+Copiar TODO o conteúdo desta pasta para o repositório, substituindo os ficheiros, SEM apagar a pasta .git. GitHub Desktop > Commit to main > Push origin.
+
+ATENÇÃO: Os dados antigos continuam no Firebase. As fichas anteriores não ficam automaticamente marcadas como concluídas hoje porque a estrutura diária é nova.
+
+Esta é uma implementação no cliente com regras de acesso. Para proteção antifraude robusta contra manipulação do navegador, é necessário validar resultados num backend confiável (por exemplo Cloud Functions).

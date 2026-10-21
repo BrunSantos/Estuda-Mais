@@ -5,6 +5,11 @@ import {defaultAvatar,choices,avSvg,avHtml} from './firebase-avatar.js';
 const config={apiKey:'AIzaSyC5c1ZCjTLcNZeuSTcVdSulEuvgaRRecW4',authDomain:'estudamais-d319f.firebaseapp.com',projectId:'estudamais-d319f',storageBucket:'estudamais-d319f.firebasestorage.app',messagingSenderId:'534502111585',appId:'1:534502111585:web:7b90fe11254cc7fd81ed20'};
 const app=initializeApp(config),auth=getAuth(app),db=getFirestore(app);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const schoolYears=['Pré-Escolar',...Array.from({length:12},(_,i)=>(i+1)+'.º ano')];
+const yearOptions=selected=>'<option value="">Escolhe o ano</option>'+schoolYears.map(y=>'<option value="'+esc(y)+'" '+(y===selected?'selected':'')+'>'+esc(y)+'</option>').join('');
+const portugalDay=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Lisbon',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+const quizKey=()=>Array.from(new TextEncoder().encode(location.pathname)).map(b=>b.toString(16).padStart(2,'0')).join('');
+let dailyLocked=false;
 const isQuiz=!!document.getElementById('result') && !!document.querySelector('button[onclick*="correct"], #check, button[onclick*="corrig"]');
 let user=null,profile=null,history=[],ranking=[],unsubscribe=null,started=0,clock=null,recorded=false,creatingAccount=false,editorDraft={...defaultAvatar};
 const fmt=n=>{n=Math.max(0,Math.floor(n));return [Math.floor(n/3600),Math.floor(n%3600/60),n%60].map(x=>String(x).padStart(2,'0')).join(':')};
@@ -23,18 +28,18 @@ function hide(){overlay.style.display='none';message('')}
 function authError(e){const codes={'auth/email-already-in-use':'Esse email já está registado.','auth/invalid-email':'O email não é válido.','auth/weak-password':'Escolhe uma password mais segura.','auth/invalid-credential':'Email ou password incorretos.','auth/too-many-requests':'Demasiadas tentativas. Experimenta mais tarde.','auth/operation-not-allowed':'Ativa Email/Password no Firebase Authentication.','auth/network-request-failed':'Falha de ligação. Verifica a internet.','permission-denied':'Acesso negado. Publica as regras do Firestore incluídas no ZIP.'};return codes[e.code]||e.message||'Não foi possível concluir a operação.'}
 function authView(mode='login'){
  const reg=mode==='register',reset=mode==='reset';
- show('<form id="epform">'+(reg?'<label>Nome do aluno (usa um pseudónimo)<input id="epname" maxlength="32" autocomplete="nickname" required></label>':'')+'<label>Email<input id="epemail" type="email" autocomplete="email" required></label>'+(reset?'':'<label>Password<input id="eppass" type="password" minlength="6" autocomplete="'+(reg?'new-password':'current-password')+'" required></label>')+(reg?'<label style="font-weight:400"><input type="checkbox" id="epconsent" required> Confirmo que sou o encarregado de educação ou tenho autorização para criar esta conta.</label><p class="ephelp">Não uses o nome completo da criança. O ranking é opcional e vem desativado.</p>':'')+'<div class="epactions"><button class="epbtn primary" type="submit">'+(reg?'Criar conta':reset?'Enviar email de recuperação':'Entrar')+'</button><button class="epbtn" type="button" id="epswitchmode">'+(reg?'Já tenho conta':reset?'Voltar ao login':'Criar conta')+'</button>'+(reg||reset?'':'<button class="epbtn" type="button" id="epforgot">Esqueci-me da password</button>')+'</div></form>',reg?'📝 Criar conta no Estuda+':reset?'🔑 Recuperar password':'🔐 Entrar no Estuda+');
+ show('<form id="epform">'+(reg?'<label>Nome do aluno (usa um pseudónimo)<input id="epname" maxlength="32" autocomplete="nickname" required></label>':'')+'<label>Email<input id="epemail" type="email" autocomplete="email" required></label>'+(reset?'':'<label>Password<input id="eppass" type="password" minlength="6" autocomplete="'+(reg?'new-password':'current-password')+'" required></label>')+(reg?'<label>Ano de escolaridade<select id="epyear" required style="box-sizing:border-box;width:100%;padding:12px;border:1px solid #adbed4;border-radius:9px;font:16px system-ui;margin:6px 0 12px">'+yearOptions('')+'</select></label>':'')+(reg?'<label style="font-weight:400"><input type="checkbox" id="epconsent" required> Confirmo que sou o encarregado de educação ou tenho autorização para criar esta conta.</label><p class="ephelp">Não uses o nome completo da criança. O ranking é opcional e vem desativado.</p>':'')+'<div class="epactions"><button class="epbtn primary" type="submit">'+(reg?'Criar conta':reset?'Enviar email de recuperação':'Entrar')+'</button><button class="epbtn" type="button" id="epswitchmode">'+(reg?'Já tenho conta':reset?'Voltar ao login':'Criar conta')+'</button>'+(reg||reset?'':'<button class="epbtn" type="button" id="epforgot">Esqueci-me da password</button>')+'</div></form>',reg?'📝 Criar conta no Estuda+':reset?'🔑 Recuperar password':'🔐 Entrar no Estuda+');
  const form=content.querySelector('#epform');
  content.querySelector('#epswitchmode').onclick=()=>authView(reg||reset?'login':'register');
  if(!reg&&!reset)content.querySelector('#epforgot').onclick=()=>authView('reset');
  form.onsubmit=async e=>{e.preventDefault();const btn=form.querySelector('[type=submit]');btn.disabled=true;message('Aguarda... ',true);
  try{const email=content.querySelector('#epemail').value.trim(),pass=content.querySelector('#eppass')?.value;
  if(reset){await sendPasswordResetEmail(auth,email);message('Se existir uma conta com este email, receberás instruções para recuperar a password.',true);return}
- if(reg){const name=document.getElementById('epname').value.trim();if(name.length<2)throw Error('O nome deve ter pelo menos dois caracteres.');if(!document.getElementById('epconsent').checked)throw Error('É necessária a confirmação do encarregado de educação.');creatingAccount=true;const cred=await createUserWithEmailAndPassword(auth,email,pass);await updateProfile(cred.user,{displayName:name});await setDoc(doc(db,'users',cred.user.uid),{name,avatar:defaultAvatar,rankingOptIn:false,completed:0,points:0,createdAt:serverTimestamp()});creatingAccount=false;await initSession(cred.user);}
+ if(reg){const name=document.getElementById('epname').value.trim(),schoolYear=document.getElementById('epyear').value;if(!schoolYears.includes(schoolYear))throw Error('Escolhe o ano escolar.');if(name.length<2)throw Error('O nome deve ter pelo menos dois caracteres.');if(!document.getElementById('epconsent').checked)throw Error('É necessária a confirmação do encarregado de educação.');creatingAccount=true;const cred=await createUserWithEmailAndPassword(auth,email,pass);await updateProfile(cred.user,{displayName:name});await setDoc(doc(db,'users',cred.user.uid),{name,schoolYear,avatar:defaultAvatar,rankingOptIn:false,completed:0,points:0,createdAt:serverTimestamp()});creatingAccount=false;await initSession(cred.user);}
  else await signInWithEmailAndPassword(auth,email,pass);
  }catch(err){creatingAccount=false;message(authError(err))}finally{btn.disabled=false}};
 }
-async function ensureProfile(u){const ref=doc(db,'users',u.uid);const snap=await getDoc(ref);if(snap.exists())return snap.data();const name=(u.displayName||'Aluno').slice(0,32);const obj={name,avatar:defaultAvatar,rankingOptIn:false,completed:0,points:0,createdAt:serverTimestamp()};await setDoc(ref,obj);return obj}
+async function ensureProfile(u){const ref=doc(db,'users',u.uid);const snap=await getDoc(ref);if(snap.exists())return snap.data();const name=(u.displayName||'Aluno').slice(0,32);const obj={name,schoolYear:'',avatar:defaultAvatar,rankingOptIn:false,completed:0,points:0,createdAt:serverTimestamp()};await setDoc(ref,obj);return obj}
 function updateBar(){bar.querySelector('#epwho').innerHTML=user&&profile?'<span style="display:inline-flex;align-items:center;gap:5px">'+avHtml(profile.avatar)+' '+esc(profile.name)+'</span>':''}
 // Mensagem de boas-vindas: um único aviso por sessão autenticada.
 // A última visita é guardada neste navegador, separadamente por UID.
@@ -59,12 +64,12 @@ function welcomeUser(){
 }
 function startClock(){if(!isQuiz||!user||started)return;started=Date.now();clock=setInterval(()=>{const t=document.getElementById('eptimer');if(t)t.textContent='⏱ '+fmt((Date.now()-started)/1000)},1000)}
 function stopClock(){if(clock)clearInterval(clock);clock=null}
-function editor(){editorDraft={...defaultAvatar,...(profile?.avatar||{})};show('<div id="epavatargrid"><div id="epavatarpreview"></div><div id="epavatarfields"></div></div><label style="font-weight:400;margin-top:14px"><input id="eppublic" type="checkbox" '+(profile?.rankingOptIn?'checked':'')+'> Mostrar o meu pseudónimo e avatar no ranking público</label><p class="ephelp">Podes desativar esta opção a qualquer momento. O histórico e o email nunca são públicos.</p><div class="epactions"><button type="button" class="epbtn primary" id="epsaveav">Guardar alterações</button><button type="button" class="epbtn" id="epcancelav">Cancelar</button></div>','🎨 Personalizar avatar');
+function editor(){editorDraft={...defaultAvatar,...(profile?.avatar||{})};show('<div id="epavatargrid"><div id="epavatarpreview"></div><div id="epavatarfields"></div></div><label style="margin-top:14px">Ano de escolaridade<select id="epyearprofile" style="box-sizing:border-box;width:100%;padding:12px;border:1px solid #adbed4;border-radius:9px;font:16px system-ui;margin:6px 0 12px">'+yearOptions(profile?.schoolYear||'')+'</select></label><label style="font-weight:400;margin-top:14px"><input id="eppublic" type="checkbox" '+(profile?.rankingOptIn?'checked':'')+'> Mostrar o meu pseudónimo e avatar no ranking público</label><p class="ephelp">Podes desativar esta opção a qualquer momento. O histórico e o email nunca são públicos.</p><div class="epactions"><button type="button" class="epbtn primary" id="epsaveav">Guardar alterações</button><button type="button" class="epbtn" id="epcancelav">Cancelar</button></div>','🎨 Personalizar avatar');
  const fields=document.getElementById('epavatarfields');fields.innerHTML=choices.map(([key,label,values])=>'<fieldset><legend>'+esc(label)+'</legend>'+values.map(([v,t])=>'<button type="button" data-key="'+esc(key)+'" data-value="'+esc(v)+'" aria-label="'+esc(t)+'" aria-pressed="'+(editorDraft[key]===v)+'" '+(['skin','hair','shirt','pants','shoes','background'].includes(key)?'class="epcolor" style="background:'+v+'" title="'+esc(t)+'"':'')+'>'+(['skin','hair','shirt','pants','shoes','background'].includes(key)?'':esc(t))+'</button>').join('')+'</fieldset>').join('');
  const preview=document.getElementById('epavatarpreview');preview.innerHTML=avHtml(editorDraft,true);
  fields.onclick=e=>{const b=e.target.closest('[data-key]');if(!b)return;editorDraft[b.dataset.key]=b.dataset.value;fields.querySelectorAll('[data-key="'+b.dataset.key+'"]').forEach(x=>x.setAttribute('aria-pressed',String(x.dataset.value===b.dataset.value)));preview.innerHTML=avHtml(editorDraft,true)};
  document.getElementById('epcancelav').onclick=hide;
- document.getElementById('epsaveav').onclick=async()=>{const opt=document.getElementById('eppublic').checked;try{const batch=writeBatch(db);batch.update(doc(db,'users',user.uid),{avatar:editorDraft,rankingOptIn:opt});const r=doc(db,'ranking',user.uid);if(opt)batch.set(r,{name:profile.name,avatar:editorDraft,completed:profile.completed||0,points:profile.points||0});else batch.delete(r);await batch.commit();profile={...profile,avatar:{...editorDraft},rankingOptIn:opt};updateBar();hide();await loadRanking()}catch(e){message(authError(e))}};
+ document.getElementById('epsaveav').onclick=async()=>{const opt=document.getElementById('eppublic').checked,schoolYear=document.getElementById('epyearprofile').value;if(schoolYear&&!schoolYears.includes(schoolYear)){message('Ano escolar inválido.');return}try{const batch=writeBatch(db);batch.update(doc(db,'users',user.uid),{avatar:editorDraft,rankingOptIn:opt,schoolYear:schoolYear||''});const r=doc(db,'ranking',user.uid);if(opt)batch.set(r,{name:profile.name,avatar:editorDraft,completed:profile.completed||0,points:profile.points||0});else batch.delete(r);await batch.commit();profile={...profile,avatar:{...editorDraft},rankingOptIn:opt,schoolYear:schoolYear||''};updateBar();hide();await loadRanking()}catch(e){message(authError(e))}};
 }
 async function loadHistory(){if(!user)return;const snap=await getDocs(query(collection(db,'users',user.uid,'history'),orderBy('date','desc'),limit(500)));history=snap.docs.map(x=>({id:x.id,...x.data()}));}
 async function loadRanking(){try{const snap=await getDocs(query(collection(db,'ranking'),orderBy('points','desc'),limit(100)));ranking=snap.docs.map(x=>x.data()).filter(x=>Number(x.completed||0)>0);renderRanking()}catch(e){const t=document.getElementById('eprankingtable');if(t)t.textContent='Não foi possível carregar o ranking: '+authError(e)}}
@@ -75,31 +80,54 @@ function renderRanking(){const t=document.getElementById('eprankingtable');if(!t
 }
 function scoreInfo(text){const m=String(text).match(/Resultado:\s*(\d+)\s*(?:de|\/)\s*(\d+)/i);if(!m)return null;const correct=Number(m[1]),total=Number(m[2]);if(!Number.isInteger(correct)||!Number.isInteger(total)||total<1||correct>total)return null;const percent=Math.round(100*correct/total);const points=10+correct*5+(correct===total?30:percent>=80?20:0);return {correct,total,percent,points}}
 function historyView(){show('<p>O histórico pertence apenas à tua conta. São apresentados os 500 resultados mais recentes.</p><div id="ephistory"></div><div class="epactions"><button type="button" class="epbtn" id="epexport">Exportar CSV</button><button type="button" class="epbtn primary" id="epclose">Fechar</button></div>','📋 O meu histórico');const t=document.getElementById('ephistory');t.innerHTML=history.length?'<table><thead><tr><th>Data</th><th>Ano / Disciplina</th><th>Teste</th><th>Resultado</th><th>Tempo</th></tr></thead><tbody>'+history.map(x=>'<tr><td>'+esc(x.date?new Date(x.date).toLocaleString('pt-PT'):'—')+'</td><td>'+esc(x.year)+' / '+esc(x.subject)+'</td><td>'+esc(x.title)+'</td><td>'+esc(x.score)+'</td><td>'+esc(x.duration)+'</td></tr>').join('')+'</tbody></table>':'Ainda não existem testes concluídos.';document.getElementById('epclose').onclick=hide;document.getElementById('epexport').onclick=()=>{const rows=[['Data','Ano','Disciplina','Teste','Resultado','Segundos'],...history.map(x=>[x.date,x.year,x.subject,x.title,x.score,x.seconds])];const csv='\ufeff'+rows.map(r=>r.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(';')).join('\r\n');const a=el('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));a.download='estudamais_historico.csv';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}}
-async function detectResult(){if(!user||!isQuiz||recorded)return;
+
+function lockQuiz(){
+ if(!isQuiz)return;
+ stopClock();
+ const buttons=[...document.querySelectorAll('button')].filter(b=>!b.closest('#epbar,#epoverlay')&&/corrig|verificar|terminar|concluir|check|repetir|reiniciar|reset/i.test((b.textContent||'')+' '+b.id+' '+(b.getAttribute('onclick')||'')));
+ buttons.forEach(b=>{b.disabled=true;b.title='Ficha concluída hoje — disponível amanhã';b.style.opacity='.5'});
+}
+async function checkDailyLock(){
+ if(!user||!isQuiz)return;
+ const today=portugalDay(),ref=doc(db,'users',user.uid,'daily',today+'_'+quizKey());
+ const snap=await getDoc(ref);dailyLocked=snap.exists();
+ if(dailyLocked){lockQuiz();const note=el('div',{id:'epdailylock',role:'status'});note.style='background:#fff4df;border:2px solid #efc66d;border-radius:12px;padding:16px;margin:16px 0;color:#67460b;font-weight:700';note.textContent='🔒 Já concluíste esta ficha hoje. Podes voltar amanhã para ganhar novos pontos!';document.querySelector('main')?.prepend(note)||bar.insertAdjacentElement('afterend',note)}
+}
+function celebrate(score){
+ const title=score.percent===100?'🏆 Perfeito!':score.percent>=80?'🌟 Parabéns!':score.percent>=50?'👏 Bom esforço!':'💪 Continua a praticar!';
+ const desc=score.percent===100?'Acertaste em todas as perguntas!':score.percent>=80?'Excelente resultado! Continua assim!':score.percent>=50?'Estás no bom caminho.':'Cada tentativa ajuda-te a aprender.';
+ const notice=el('div',{role:'status','aria-live':'polite'});notice.style='margin:15px 0;padding:20px;border-radius:16px;border:2px solid #b9d9f6;background:#f1f8ff;text-align:center;font:600 17px system-ui;color:#193e70';notice.innerHTML='<div style="font-size:26px">'+title+'</div><p>'+desc+'</p><strong>'+score.percent+'% de respostas certas</strong>';
+ document.getElementById('epresultnotice')?.insertAdjacentElement('afterend',notice);
+}
+
+async function detectResult(){if(!user||!isQuiz||recorded||dailyLocked)return;
  const result=document.getElementById('result'),txt=result?.textContent?.trim()||'',score=scoreInfo(txt);if(!score){if(txt && /resultado/i.test(txt)){let warning=document.getElementById('epresultnotice');if(!warning){warning=el('p',{id:'epresultnotice'});result.insertAdjacentElement('afterend',warning)}warning.textContent='Não foi possível interpretar o resultado desta ficha. O resultado ainda não foi guardado.';warning.style.color='#a32929'}return;}
  const radios=[...document.querySelectorAll('input[type="radio"]')];if(!radios.some(r=>r.checked)){let warning=document.getElementById('epresultnotice');if(!warning){warning=el('p',{id:'epresultnotice'});result.insertAdjacentElement('afterend',warning)}warning.textContent='Seleciona pelo menos uma resposta para guardar a ficha.';warning.style.color='#a32929';return;}
  recorded=true;stopClock();const parts=location.pathname.split('/').filter(Boolean),folder=parts[parts.length-2]||'',year=/^\d+ano$/.test(folder)?folder.replace('ano','.º ano'):'—';const seconds=started?Math.round((Date.now()-started)/1000):0;
  const item={date:new Date().toISOString(),year,subject:(document.querySelector('header p')?.textContent||'').split('·')[0].trim().slice(0,80)||'—',title:(document.querySelector('h1')?.textContent||document.title).trim().slice(0,150),score:txt.slice(0,150),seconds,duration:fmt(seconds),file:location.pathname};
  const oldNotice=document.getElementById('epresultnotice');if(oldNotice)oldNotice.remove();const notice=el('p',{id:'epresultnotice'});notice.style='font-weight:700;color:#a32929';notice.textContent='A guardar o resultado...';result?.insertAdjacentElement('afterend',notice);
  try{
-  const key=Array.from(new TextEncoder().encode(location.pathname)).map(b=>b.toString(16).padStart(2,'0')).join('');
+  const key=quizKey(),day=portugalDay();
   const userRef=doc(db,'users',user.uid),bestRef=doc(db,'users',user.uid,'best',key),rankingRef=doc(db,'ranking',user.uid),historyRef=doc(collection(db,'users',user.uid,'history'));
+  const dayRef=doc(db,'users',user.uid,'daily',day+'_'+key);
   const change=await runTransaction(db,async tx=>{
-   const [uSnap,bSnap]=await Promise.all([tx.get(userRef),tx.get(bestRef)]);
+   const [uSnap,dSnap]=await Promise.all([tx.get(userRef),tx.get(dayRef)]);
    if(!uSnap.exists())throw Error('Perfil não encontrado.');
-   const u=uSnap.data(),old=bSnap.exists()?bSnap.data():null;
-   const gain=Math.max(0,score.points-Number(old?.points||0));
-   const newCompleted=Number(u.completed||0)+(old?0:1),newPoints=Number(u.points||0)+gain;
-   // A melhor tentativa é a única que conta para os pontos; todas as tentativas ficam no histórico.
-   if(!old||gain>0)tx.set(bestRef,{file:location.pathname,points:score.points,correct:score.correct,total:score.total,percent:score.percent});
+   if(dSnap.exists())return {duplicate:true,newCompleted:Number(uSnap.data().completed||0),newPoints:Number(uSnap.data().points||0),gain:0};
+   const u=uSnap.data(),gain=score.points;
+   const newCompleted=Number(u.completed||0)+1,newPoints=Number(u.points||0)+gain;
+   tx.set(dayRef,{file:location.pathname,day,points:gain,createdAt:serverTimestamp()});
    tx.update(userRef,{completed:newCompleted,points:newPoints});
    if(u.rankingOptIn)tx.set(rankingRef,{name:u.name,avatar:u.avatar,completed:newCompleted,points:newPoints});
    tx.set(historyRef,item);
-   return {gain,newCompleted,newPoints};
+   return {gain,newCompleted,newPoints,duplicate:false};
   });
+  if(change.duplicate){dailyLocked=true;notice.style.color='#a32929';notice.textContent='Esta ficha já foi concluída hoje. Volta amanhã para ganhares novos pontos.';lockQuiz();return;}
+  dailyLocked=true;lockQuiz();
   history.unshift(item);profile.completed=change.newCompleted;profile.points=change.newPoints;
   notice.style.color='#087544';notice.textContent='✓ Resultado guardado · '+score.points+' pontos nesta ficha · +'+change.gain+' pontos no ranking · Tempo: '+fmt(seconds);
-  if(document.getElementById('eprankingtable'))await loadRanking();
+  celebrate(score);
+  await loadRanking();
  }catch(e){recorded=false;notice.textContent='O resultado ainda não foi guardado: '+authError(e)+' ';const retry=el('button',{type:'button',class:'epbtn'});retry.textContent='Tentar guardar novamente';retry.onclick=()=>{retry.disabled=true;notice.remove();detectResult()};notice.append(retry)}
 }
 // A correção de cada ficha escreve em #result. Observar o resultado é mais seguro
@@ -115,13 +143,13 @@ if(isQuiz){
   observer.observe(resultNode,{childList:true,characterData:true,subtree:true});
  }
 }
-if(isQuiz)document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const str=((b.textContent||'')+' '+(b.id||'')+' '+(b.getAttribute('onclick')||'')).toLowerCase();if(/corrig|verificar|terminar|concluir|check/.test(str))setTimeout(detectResult,180);if(/repetir|reiniciar|reset/.test(str)){recorded=false;stopClock();started=0;setTimeout(startClock,50)}},true);
-function rankingPanel(){if(!/\/(?:index\.html)?$/.test(location.pathname))return;const main=document.querySelector('main');if(!main)return;const panel=el('section',{id:'epranking',class:'panel'});panel.innerHTML='<h2>🏆 Ranking dos alunos</h2><p>Participação voluntária. Apenas pseudónimos e avatares são visíveis aos utilizadores autenticados. Pontos por acertos e esforço; só conta a melhor tentativa de cada ficha.</p><div id="eprankingtable">A carregar...</div>';main.prepend(panel)}
+if(isQuiz)document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const str=((b.textContent||'')+' '+(b.id||'')+' '+(b.getAttribute('onclick')||'')).toLowerCase();if(/corrig|verificar|terminar|concluir|check/.test(str))setTimeout(detectResult,180);if(/repetir|reiniciar|reset/.test(str)&&!dailyLocked){recorded=false;stopClock();started=0;setTimeout(startClock,50)}},true);
+function rankingPanel(){if(!/\/(?:index\.html)?$/.test(location.pathname))return;const main=document.querySelector('main');if(!main)return;const panel=el('section',{id:'epranking',class:'panel'});panel.innerHTML='<h2>🏆 Ranking dos alunos</h2><p>Participação voluntária. Apenas pseudónimos e avatares são visíveis aos utilizadores autenticados. Pontos por acertos e esforço; cada ficha conta uma vez por dia e pode voltar a dar pontos no dia seguinte.</p><div id="eprankingtable">A carregar...</div>';main.prepend(panel)}
 rankingPanel();
 bar.querySelector('#ephbtn').onclick=async()=>{if(!user)return;try{await loadHistory();historyView()}catch(e){show('<p>'+esc(authError(e))+'</p><button class="epbtn" id="epclose">Fechar</button>','Erro no histórico');document.getElementById('epclose').onclick=hide}};
 bar.querySelector('#epavbtn').onclick=()=>{if(user)editor()};
 bar.querySelector('#eplogout').onclick=async()=>{if(isQuiz&&started&&!recorded&&!confirm('O teste atual não será guardado. Queres sair?'))return;stopClock();if(user){try{sessionStorage.removeItem('ep_welcomed_'+user.uid)}catch(e){}}await signOut(auth);location.replace(new URL('./',import.meta.url).href)};
 // Block all interaction until Firebase establishes an authenticated session.
 show('<div class="epbook" aria-hidden="true"><span class="epcover"></span><span class="epleft"></span><span class="epright"></span><span class="eppage"></span><span class="eppage"></span><span class="eppage"></span></div><p style="text-align:center">'+(isQuiz?'A preparar a tua ficha…':'A entrar na tua conta…')+'</p>','📚 Estuda+');
-async function initSession(u){if(u&&user&&u.uid!==user.uid){location.replace(new URL('./',import.meta.url).href);return}user=u;profile=null;history=[];stopClock();started=0;recorded=false;if(!u){updateBar();authView();return}try{profile=await ensureProfile(u);updateBar();await loadHistory();hide();startClock();welcomeUser();loadRanking()}catch(e){show('<p>Não foi possível carregar o perfil: '+esc(authError(e))+'</p><div class="epactions"><button class="epbtn" id="epretry">Tentar novamente</button><button class="epbtn" id="epsignout">Sair</button></div>','Erro de ligação');document.getElementById('epretry').onclick=()=>location.reload();document.getElementById('epsignout').onclick=()=>signOut(auth)}}
+async function initSession(u){if(u&&user&&u.uid!==user.uid){location.replace(new URL('./',import.meta.url).href);return}user=u;profile=null;history=[];stopClock();started=0;recorded=false;if(!u){updateBar();authView();return}try{profile=await ensureProfile(u);updateBar();await loadHistory();hide();if(isQuiz)await checkDailyLock();if(!dailyLocked)startClock();welcomeUser();loadRanking()}catch(e){show('<p>Não foi possível carregar o perfil: '+esc(authError(e))+'</p><div class="epactions"><button class="epbtn" id="epretry">Tentar novamente</button><button class="epbtn" id="epsignout">Sair</button></div>','Erro de ligação');document.getElementById('epretry').onclick=()=>location.reload();document.getElementById('epsignout').onclick=()=>signOut(auth)}}
 onAuthStateChanged(auth,u=>{if(!creatingAccount)initSession(u)});
