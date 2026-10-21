@@ -256,7 +256,7 @@ bar.querySelector('#ephbtn').before(epFamilyButton);
 // V54.5.4: alerta em tempo real apenas para alunos autenticados.
 const epFamilyBadge=el('span',{id:'epfamilybadge','aria-label':'Pedidos familiares pendentes'});
 epFamilyBadge.setAttribute('aria-live','polite');
-epFamilyBadge.style.cssText='display:none;align-items:center;justify-content:center;min-width:21px;height:21px;padding:0 5px;box-sizing:border-box;border-radius:99px;background:#dc2626;color:#fff;font:bold 12px system-ui;margin-left:7px;box-shadow:0 0 0 2px #fff';
+epFamilyBadge.style.cssText='display:none;align-items:center;justify-content:center;gap:4px;min-width:32px;height:26px;padding:0 7px;box-sizing:border-box;border-radius:99px;background:#dc2626;color:#fff;font:bold 13px system-ui;margin-left:7px;box-shadow:0 0 0 2px #fff';
 epFamilyButton.appendChild(epFamilyBadge);
 let epFamilyRequestsUnsubscribe=null;
 function epStopFamilyNotifications(){
@@ -271,14 +271,32 @@ function epStartFamilyNotifications(){
  epFamilyRequestsUnsubscribe=onSnapshot(collection(db,'users',accountUid,'requests'),snapshot=>{
   if(user?.uid!==accountUid)return;
   const count=snapshot.size;
-  epFamilyBadge.textContent=count>99?'99+':String(count);
+  epFamilyBadge.replaceChildren();
+  if(count){
+   const bell=document.createElementNS('http://www.w3.org/2000/svg','svg');
+   bell.setAttribute('viewBox','0 0 24 24');bell.setAttribute('width','17');bell.setAttribute('height','17');
+   bell.setAttribute('fill','none');bell.setAttribute('stroke','currentColor');
+   bell.setAttribute('stroke-width','2');bell.setAttribute('stroke-linecap','round');bell.setAttribute('stroke-linejoin','round');
+   bell.setAttribute('aria-hidden','true');
+   const outline=document.createElementNS('http://www.w3.org/2000/svg','path');
+   outline.setAttribute('d','M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9');
+   const clapper=document.createElementNS('http://www.w3.org/2000/svg','path');
+   clapper.setAttribute('d','M10 21h4');bell.append(outline,clapper);
+   epFamilyBadge.append(bell,document.createTextNode(count>99?'99+':String(count)));
+  }
+  epFamilyBadge.style.background='#dc2626';
+  epFamilyBadge.title=count?`${count} pedido(s) pendente(s)`:'';
   epFamilyBadge.style.display=count?'inline-flex':'none';
   epFamilyButton.setAttribute('aria-label',count?`Família: ${count} pedido${count===1?'':'s'} pendente${count===1?'':'s'}`:'Família');
   const pending=document.getElementById('eppending');
   if(pending&&pending.isConnected&&!epIsGuardian())epFamilyPending();
  },error=>{
   console.warn('Estuda+ notificações familiares:',error);
-  epFamilyBadge.style.display='none';
+  epFamilyBadge.textContent='⚠';
+  epFamilyBadge.title='Não foi possível verificar os pedidos: '+(error.code||error.message||'erro');
+  epFamilyBadge.style.display='inline-flex';
+  epFamilyBadge.style.background='#b45309';
+  epFamilyButton.setAttribute('aria-label','Família: erro ao consultar pedidos');
  });
 }
 
