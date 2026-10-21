@@ -1,0 +1,13 @@
+ESTUDA+ V54.5 — EVOLUÇÃO ESCOLAR
+
+Base: v54.4.5 enviada pelo utilizador.
+
+Novidades: desempenho por disciplina, barras de médias, evolução dos últimos 16 resultados numéricos, histórico detalhado e ranking familiar. Apenas alunos autorizados.
+
+As médias só usam resultados em percentagem ou fração. Se não existir histórico ou não for permitido consultá-lo, a interface informa o utilizador.
+
+Instalação: copiar todos os ficheiros para o repositório GitHub, mantendo .git, fazer Commit e Push.
+
+Regras Firestore: inalteradas face à versão 54.4.5.
+
+Testes: sintaxe JavaScript e integridade ZIP; a integração com contas reais Firebase e o Safari requerem validação após publicação.

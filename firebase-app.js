@@ -419,35 +419,54 @@ async function epFamilyManage(){
   for(const d of snap.docs){const row=el('div');row.style='display:flex;align-items:center;gap:10px;margin:10px 0;overflow-wrap:anywhere';const code=el('span',{},d.id);code.style='flex:1;font-family:monospace;font-size:12px';const btn=el('button',{class:'epbtn',type:'button'},'Revogar');btn.onclick=async()=>{if(!confirm('Revogar o acesso desta conta?'))return;try{const {deleteDoc}=await import('https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js');const batch=writeBatch(db);batch.delete(doc(db,'users',user.uid,'guardians',d.id));batch.delete(doc(db,'users',d.id,'children',user.uid));await batch.commit();row.remove();message('Acesso revogado.',true)}catch(e){message(authError(e))}};row.append(code,btn);target.append(row)}
  }catch(e){show('<p>'+esc(authError(e))+'</p><button class="epbtn" id="epbackfamily">Voltar</button>','Erro');document.getElementById('epbackfamily').onclick=epFamilyHome}
 }
+function epGrade(score){
+ const t=String(score||'');let m=t.match(/(\d+(?:[.,]\d+)?)\s*%/);if(m)return Math.min(100,Math.max(0,Number(m[1].replace(',','.'))));
+ m=t.match(/(\d+)\s*\/\s*(\d+)/);if(m&&Number(m[2])>0)return Math.min(100,Math.max(0,100*Number(m[1])/Number(m[2])));
+ return null;
+}
+function epFamilyMetrics(items){
+ const subjects=new Map(),grades=[],chronological=[];
+ for(const x of items){const subject=String(x.subject||'Sem disciplina').trim()||'Sem disciplina';if(!subjects.has(subject))subjects.set(subject,{name:subject,count:0,grades:[]});const o=subjects.get(subject);o.count++;const pct=epGrade(x.score);if(pct!==null){o.grades.push(pct);grades.push(pct);chronological.push({date:String(x.date||''),pct,subject})}}
+ const avg=grades.length?Math.round(grades.reduce((a,b)=>a+b,0)/grades.length):null;
+ const bySubject=[...subjects.values()].map(x=>({...x,avg:x.grades.length?Math.round(x.grades.reduce((a,b)=>a+b,0)/x.grades.length):null})).sort((a,b)=>b.count-a.count);
+ chronological.sort((a,b)=>a.date.localeCompare(b.date));
+ return {avg,bySubject,chronological,graded:grades.length};
+}
+function epFamilySubjectBars(metrics){
+ if(!metrics.bySubject.length)return '<p class="epgmuted">Ainda não existem fichas no histórico.</p>';
+ return '<div class="epgsubjects">'+metrics.bySubject.map(x=>'<div class="epgsubject"><div class="epgsubjecthead"><strong>'+esc(x.name)+'</strong><span>'+x.count+' ficha'+(x.count===1?'':'s')+' · '+(x.avg===null?'Sem nota comparável':x.avg+'%')+'</span></div><div class="epgtrack"><div class="epgfill" style="width:'+(x.avg===null?0:x.avg)+'%"></div></div></div>').join('')+'</div>';
+}
+function epFamilyTrend(metrics){
+ const points=metrics.chronological.slice(-16);if(!points.length)return '<p class="epgmuted">Ainda não existem resultados numéricos suficientes para apresentar a evolução.</p>';
+ return '<div class="epgtrend" aria-label="Evolução dos últimos '+points.length+' resultados">'+points.map(x=>'<div class="epgtrenditem" title="'+esc(x.subject)+' · '+esc(x.date)+' · '+Math.round(x.pct)+'%"><strong>'+Math.round(x.pct)+'%</strong><div class="epgtrendbar" style="height:'+Math.max(3,Math.round(x.pct))+'%"></div><small>'+esc(epGuardianDate(x.date))+'</small></div>').join('')+'</div><p class="epgmuted">Últimos '+points.length+' resultados com classificação numérica, por ordem cronológica.</p>';
+}
 async function epFamilyReport(id){
  if(!epIsGuardian()){message('A consulta de alunos está disponível apenas para encarregados de educação.');return}
  if(!epUidOK(id)||id===user.uid){message('Introduz o código válido da conta do aluno.');return}
  try{
-  // Firestore rules independently verify the student's authorization.
-  const [pSnap,hSnap]=await Promise.all([getDoc(doc(db,'users',id)),getDocs(query(collection(db,'users',id,'history'),orderBy('date','desc'),limit(500)))]);
-  if(!pSnap.exists())throw Error('Não foi possível encontrar o perfil autorizado.');
+  const pSnap=await getDoc(doc(db,'users',id));if(!pSnap.exists())throw Error('Não foi possível encontrar o perfil autorizado.');
+  const student=pSnap.data();let items=[],historyError=null;
+  try{const hSnap=await getDocs(query(collection(db,'users',id,'history'),orderBy('date','desc'),limit(500)));items=hSnap.docs.map(x=>x.data())}catch(e){historyError=e}
   epFamilyRemember(id);
-  if(epIsGuardian())epGuardianDashboard();
-  const student=pSnap.data(),items=hSnap.docs.map(x=>x.data());
-  const percentages=items.map(x=>{const t=String(x.score||'');const m=t.match(/(\d+(?:[.,]\d+)?)\s*%/);if(m)return Number(m[1].replace(',','.'));const a=t.match(/(\d+)\s*\/\s*(\d+)/);return a&&Number(a[2])?100*Number(a[1])/Number(a[2]):null}).filter(x=>x!==null);
-  const avg=percentages.length?Math.round(percentages.reduce((a,b)=>a+b,0)/percentages.length)+'%':'—';
+  const metrics=epFamilyMetrics(items);
   const recent=items.slice(0,100);
-  const subjects={};for(const x of items){const k=String(x.subject||'Sem disciplina');subjects[k]=(subjects[k]||0)+1}
-  const subjectHtml=Object.entries(subjects).sort((a,b)=>b[1]-a[1]).slice(0,10).map(([k,v])=>'<li>'+esc(k)+': '+v+' fichas</li>').join('');
-  const rows=recent.map(x=>'<tr><td>'+esc(x.date?new Date(x.date).toLocaleDateString('pt-PT'):'—')+'</td><td>'+esc(x.subject||'—')+'</td><td>'+esc(x.title||'—')+'</td><td>'+esc(x.score||'—')+'</td></tr>').join('');
-  show('<p>Consulta apenas de leitura, autorizada pela conta do aluno.</p><h3>'+esc(student.name||'Aluno')+' · '+esc(student.schoolYear||'Ano não definido')+'</h3>'+
-  '<div style="display:flex;flex-wrap:wrap;gap:10px">'+[['Fichas realizadas',items.length],['Média de resultados',avg],['Pontos acumulados',student.points||0]].map(([k,v])=>'<div style="flex:1;min-width:120px;background:#eef5ff;border-radius:12px;padding:12px"><small>'+esc(k)+'</small><h3>'+esc(v)+'</h3></div>').join('')+'</div>'+
-  '<h3>Disciplinas estudadas</h3>'+(subjectHtml?'<ul>'+subjectHtml+'</ul>':'<p>Ainda não há resultados.</p>')+
-  '<h3>Últimas fichas</h3><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse"><thead><tr><th>Data</th><th>Disciplina</th><th>Ficha</th><th>Resultado</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
-  '<p class="ephelp">São apresentados até 500 resultados do histórico e até 100 linhas na tabela. O aluno pode revogar esta autorização na sua conta.</p><div class="epactions"><button class="epbtn" id="epbackfamily">Voltar</button></div>','📊 Acompanhamento escolar');
-  document.getElementById('epbackfamily').onclick=epFamilyHome;
- }catch(e){show('<p>Não foi possível consultar os resultados. Confirma que o aluno autorizou o código da tua conta.</p><p class="ephelp">'+esc(authError(e))+'</p><button class="epbtn" id="epbackfamily">Voltar</button>','Acesso não autorizado');document.getElementById('epbackfamily').onclick=epFamilyHome}
+  const rows=recent.map(x=>'<tr><td>'+esc(epGuardianDate(x.date))+'</td><td>'+esc(x.subject||'—')+'</td><td>'+esc(x.title||'—')+'</td><td>'+esc(x.score||'—')+'</td></tr>').join('');
+  show('<div class="epgdetail"><p>Consulta apenas de leitura, autorizada pela conta do aluno.</p><h3>'+esc(student.name||'Aluno')+' · '+esc(student.schoolYear||'Ano não definido')+'</h3>'+
+  '<div class="epgcards">'+[['Fichas concluídas',Number(student.completed||0)],['Média de classificações',metrics.avg===null?'—':metrics.avg+'%'],['Pontos acumulados',Number(student.points||0).toLocaleString('pt-PT')]].map(([k,v])=>'<div class="epgstat"><span>'+esc(k)+'</span><strong>'+esc(v)+'</strong></div>').join('')+'</div>'+
+  (historyError?'<p class="epgerror" role="alert">Não foi possível carregar o histórico: '+esc(authError(historyError))+'</p>':'')+
+  '<h3>Desempenho por disciplina</h3>'+epFamilySubjectBars(metrics)+'<h3>Evolução das classificações</h3>'+epFamilyTrend(metrics)+
+  '<h3>Histórico de fichas</h3><div style="overflow-x:auto"><table class="epgtable"><thead><tr><th>Data</th><th>Disciplina</th><th>Ficha</th><th>Resultado</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
+  '<p class="ephelp">Até 500 resultados analisados e 100 apresentados na tabela. A média utiliza apenas classificações expressas em percentagem ou fração. O aluno pode revogar o acesso.</p><div class="epactions"><button class="epbtn" id="epbackfamily">Voltar ao painel</button></div></div>','📊 Evolução escolar');
+  document.getElementById('epbackfamily').onclick=()=>{hide();epGuardianDashboard()};
+ }catch(e){show('<p>Não foi possível consultar os resultados. Confirma que o aluno autorizou a tua conta.</p><p class="ephelp">'+esc(authError(e))+'</p><button class="epbtn" id="epbackfamily">Voltar</button>','Acesso não autorizado');document.getElementById('epbackfamily').onclick=()=>{hide();epGuardianDashboard()}}
 }
 epFamilyButton.onclick=epFamilyHome;
 
 // V54.3: Exclusive guardian home. Child data is read only after Firestore authorization.
 const epGuardianStyles=el('style');epGuardianStyles.textContent=`body.epguardian-mode header,body.epguardian-mode main> :not(#epguardianhome){display:none!important}body.epguardian-mode #epbar #ephbtn,body.epguardian-mode #epbar #epavbtn,body.epguardian-mode #epbar #epprogressbtn,body.epguardian-mode #epbar #eprecommendbtn,body.epguardian-mode #epbar #eprankingbtn{display:none!important}#epguardianhome{display:block!important;max-width:1000px;margin:24px auto;background:#fff;border-radius:18px;padding:clamp(18px,4vw,32px);box-shadow:0 2px 14px #16365712}#epguardianhome .epgcards{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:12px;margin:18px 0}#epguardianhome .epgstat{background:#edf5ff;padding:18px;border-radius:14px}#epguardianhome .epgstat strong{font-size:24px;display:block;margin-top:7px}#epguardianhome .epgchild{border:1px solid #d7e4f3;border-radius:13px;padding:15px;margin:12px 0}#epguardianhome .epgchild button{background:#2066b2;color:#fff;border:0;border-radius:9px;padding:11px 15px;cursor:pointer}#epguardianhome table{width:100%;border-collapse:collapse}#epguardianhome th,#epguardianhome td{padding:11px 7px;border-bottom:1px solid #e3eaf3;text-align:left}#epguardianhome .epgmuted{color:#61758e}#epguardianhome .epgerror{color:#a32929}`;
 document.head.appendChild(epGuardianStyles);
+const ep545Styles=el('style');ep545Styles.textContent=`#epguardianhome .epgsubjects,.epgdetail .epgsubjects{display:grid;gap:12px;margin:16px 0 22px} .epgsubjecthead{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;font-size:14px;margin-bottom:5px}.epgsubjecthead span{color:#526b85}.epgtrack{height:11px;border-radius:20px;background:#e4edf7;overflow:hidden}.epgfill{height:100%;border-radius:20px;background:#2873b8}.epgtrend{display:flex;align-items:flex-end;gap:8px;overflow-x:auto;height:220px;border-bottom:1px solid #d7e4f3;padding:10px 0}.epgtrenditem{height:100%;min-width:48px;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:4px}.epgtrenditem strong{font-size:12px}.epgtrendbar{background:#2873b8;border-radius:5px 5px 0 0;width:75%;max-height:140px;min-height:3px}.epgtrenditem small{font-size:10px;color:#61758e;white-space:nowrap}.epgdetail .epgcards{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px}.epgdetail .epgstat{padding:14px;background:#edf5ff;border-radius:12px}.epgdetail .epgstat strong{display:block;font-size:22px;margin-top:7px}.epgtable{width:100%;border-collapse:collapse}.epgtable th,.epgtable td{padding:9px;text-align:left;border-bottom:1px solid #e3eaf3}.epgdetail .epgerror{color:#a32929;background:#fff1f1;padding:12px;border-radius:10px}@media(max-width:600px){.epgsubjecthead{display:block}.epgtrenditem{min-width:43px}}`;document.head.appendChild(ep545Styles);
+
 function epGuardianHomeShell(){
  document.body.classList.add('epguardian-mode');
  let main=document.querySelector('main');if(!main){main=el('main');document.body.appendChild(main)}
@@ -470,8 +489,8 @@ async function epGuardianDashboard(){
    const p=ps.data();let items=[];let historyError=null;
    try{const hs=await getDocs(query(collection(db,'users',id,'history'),orderBy('date','desc'),limit(500)));items=hs.docs.map(d=>d.data())}
    catch(e){historyError=e;console.warn('Estuda+ histórico familiar:',id,e)}
-   const pct=items.map(x=>{const t=String(x.score||'');const m=t.match(/(\d+(?:[.,]\d+)?)\s*%/);if(m)return Number(m[1].replace(',','.'));const f=t.match(/(\d+)\s*\/\s*(\d+)/);return f&&+f[2]?100*+f[1]/+f[2]:null}).filter(x=>x!==null);
-   rows.push({id,name:String(p.name||'Aluno'),year:String(p.schoolYear||'Ano não definido'),points:Number(p.points||0),completed:Number(p.completed||items.length),avg:pct.length?Math.round(pct.reduce((a,b)=>a+b,0)/pct.length):null,items});
+   const metrics=epFamilyMetrics(items);
+   rows.push({id,name:String(p.name||'Aluno'),year:String(p.schoolYear||'Ano não definido'),points:Number(p.points||0),completed:Number(p.completed||items.length),avg:metrics.avg,metrics,items});
    if(historyError)errors.push('Histórico de '+String(p.name||'aluno')+': '+authError(historyError));
   }catch(e){errors.push('Aluno '+id.slice(0,6)+'…: '+authError(e));}
  }
