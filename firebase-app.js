@@ -220,6 +220,34 @@ function epProgressView(){
  document.getElementById('epprogressclose').onclick=hide;
 }
 function rankingPanel(){if(!/\/(?:index\.html)?$/.test(location.pathname))return;const main=document.querySelector('main');if(!main)return;const panel=el('section',{id:'epranking',class:'panel'});panel.innerHTML='<h2>🏆 Ranking dos alunos</h2><p>Participação voluntária. Apenas pseudónimos e avatares são visíveis aos utilizadores autenticados. Pontos por acertos e esforço; cada ficha conta uma vez por dia e pode voltar a dar pontos no dia seguinte.</p><div id="eprankingtable">A carregar...</div>';main.prepend(panel)}
+// V53 — recomendações locais baseadas apenas no histórico autenticado.
+const epNorm=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
+const epYearFolder=y=>y==='Pré-Escolar'?'pre-escolar':(/^\d+\.º ano$/.test(y||'')?y.split('.')[0]+'ano':'');
+function epFileKey(p){const a=String(p||'').split('/').filter(Boolean);return a.slice(-2).join('/');}
+async function epRecommendations(){
+ const res=await fetch(new URL('./recommendations-catalog.json',import.meta.url),{cache:'no-cache'});
+ if(!res.ok)throw Error('Não foi possível carregar a lista de fichas.');
+ const all=await res.json(),year=epYearFolder(profile?.schoolYear);
+ if(!year){show('<p>Escolhe primeiro o teu ano de escolaridade em 🎨 Avatar para receberes recomendações adequadas.</p><div class="epactions"><button class="epbtn primary" id="eprdone">Fechar</button></div>','🎯 Fichas recomendadas');document.getElementById('eprdone').onclick=hide;return;}
+ const current=all.filter(x=>x.year===year),today=portugalDay();
+ const completedToday=new Set(history.filter(x=>epLocalDay(x.date)===today).map(x=>epFileKey(x.file)));
+ const previous=new Map();for(const h of history){const key=epFileKey(h.file);if(!previous.has(key))previous.set(key,h)}
+ const weak=new Map();for(const h of history){if(epFileKey(h.file).split('/')[0]!==year)continue;const pct=epScorePercent(h.score);if(pct===null||pct>=80)continue;const norm=epNorm(h.subject);if(norm)weak.set(norm,(weak.get(norm)||0)+(80-pct));}
+ const candidate=current.filter(x=>!completedToday.has(x.file));
+ const ranked=candidate.map(x=>{
+   const subject=epNorm(x.subject),score=[...weak].reduce((a,[k,v])=>(subject.includes(k)||k.includes(subject))?a+v:a,0);
+   const done=previous.has(x.file),last=done?epScorePercent(previous.get(x.file).score):null;
+   return {...x,priority:score+(done&&last!==null&&last<80?25:0)+(done?-10:10),weak:score>0,done};
+ }).sort((a,b)=>b.priority-a.priority||a.title.localeCompare(b.title,'pt'));
+ const picks=ranked.slice(0,6);
+ const html=picks.length?picks.map(x=>'<article style="border:1px solid #d9e5f3;border-radius:13px;padding:14px;margin:10px 0"><strong>'+esc(x.title)+'</strong><p style="margin:7px 0;color:#506681">'+esc(x.subject)+' · '+(x.weak?'Reforçar esta disciplina':x.done?'Voltar a praticar':'Nova ficha para praticar')+'</p><a class="epbtn primary" style="display:inline-block;text-decoration:none" href="'+esc(new URL('./'+x.file,import.meta.url).href)+'">Abrir ficha →</a></article>').join(''):'<p>Já realizaste todas as fichas disponíveis deste ano hoje. Volta amanhã!</p>';
+ show('<p>Recomendações para <strong>'+esc(profile.schoolYear)+'</strong>, baseadas nas tuas fichas e resultados. Não é uma análise automática de cada pergunta.</p>'+html+'<p class="ephelp">Não recomendamos fichas já concluídas hoje. Se ainda não houver resultados suficientes, sugerimos fichas por explorar.</p><div class="epactions"><button class="epbtn" id="eprdone">Fechar</button></div>','🎯 Fichas recomendadas');
+ document.getElementById('eprdone').onclick=hide;
+}
+const epRecommendButton=el('button',{id:'eprecommendbtn',type:'button'},'🎯 Recomendações');
+bar.querySelector('#ephbtn').before(epRecommendButton);
+epRecommendButton.onclick=async()=>{if(!user)return;try{await loadHistory();await epRecommendations()}catch(e){show('<p>'+esc(e.message||'Erro ao carregar recomendações.')+'</p><button class="epbtn" id="eprdone">Fechar</button>','Erro nas recomendações');document.getElementById('eprdone').onclick=hide}};
+
 rankingPanel();
 const epProgressButton=el('button',{id:'epprogressbtn',type:'button'},'🌟 Conquistas');bar.querySelector('#ephbtn').before(epProgressButton);epProgressButton.onclick=async()=>{if(!user)return;try{await loadHistory();epProgressView()}catch(e){show('<p>'+esc(authError(e))+'</p>','Erro nas conquistas')}};
 bar.querySelector('#ephbtn').onclick=async()=>{if(!user)return;try{await loadHistory();historyView()}catch(e){show('<p>'+esc(authError(e))+'</p><button class="epbtn" id="epclose">Fechar</button>','Erro no histórico');document.getElementById('epclose').onclick=hide}};
