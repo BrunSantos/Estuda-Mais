@@ -1,0 +1,17 @@
+ESTUDA+ V54 — ÁREA DA FAMÍLIA
+
+Novidade: botão 👨‍👩‍👧 Família. Um aluno autoriza explicitamente uma conta de encarregado pelo código de utilizador; o encarregado consulta o histórico e a evolução em modo de leitura. O aluno pode revogar o acesso.
+
+IMPORTANTE: é obrigatório publicar as NOVAS regras em firestore.rules no Firebase Console → Firestore Database → Rules → Publish ANTES de usar a funcionalidade. As regras impedem a leitura sem autorização e impedem os encarregados de alterar o histórico.
+
+PASSOS:
+1. Guardar cópia do repositório e das regras Firebase atuais.
+2. Publicar firestore.rules no Firebase Console.
+3. Copiar TODOS os ficheiros deste ZIP para a pasta do repositório Estuda-Mais, preservando .git.
+4. GitHub Desktop: Commit to main → Push origin.
+5. Testar com duas contas diferentes: uma do aluno e outra do encarregado. A conta do aluno deve autorizar o código da conta do encarregado.
+6. Confirmar que uma conta não autorizada NÃO consegue ler o histórico de outro aluno; testar também a revogação.
+
+NOTAS: A conta do encarregado utiliza o mesmo formulário de conta existente. Não há verificação documental de parentesco. Apenas o titular da conta do aluno pode autorizar o acesso. Esta versão não envia emails de convite. O relatório mostra até 500 registos recentes.
+
+Não publicar sem testar permissões do Firebase com duas contas.

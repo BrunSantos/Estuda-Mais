@@ -29,14 +29,15 @@ function hide(){overlay.style.display='none';message('')}
 function authError(e){const codes={'auth/email-already-in-use':'Esse email já está registado.','auth/invalid-email':'O email não é válido.','auth/weak-password':'Escolhe uma password mais segura.','auth/invalid-credential':'Email ou password incorretos.','auth/too-many-requests':'Demasiadas tentativas. Experimenta mais tarde.','auth/operation-not-allowed':'Ativa Email/Password no Firebase Authentication.','auth/network-request-failed':'Falha de ligação. Verifica a internet.','permission-denied':'Acesso negado. Publica as regras do Firestore incluídas no ZIP.'};return codes[e.code]||e.message||'Não foi possível concluir a operação.'}
 function authView(mode='login'){
  const reg=mode==='register',reset=mode==='reset';
- show('<form id="epform">'+(reg?'<label>Nome do aluno (usa um pseudónimo)<input id="epname" maxlength="32" autocomplete="nickname" required></label>':'')+'<label>Email<input id="epemail" type="email" autocomplete="email" required></label>'+(reset?'':'<label>Password<input id="eppass" type="password" minlength="6" autocomplete="'+(reg?'new-password':'current-password')+'" required></label>')+(reg?'<label>Ano de escolaridade<select id="epyear" required style="box-sizing:border-box;width:100%;padding:12px;border:1px solid #adbed4;border-radius:9px;font:16px system-ui;margin:6px 0 12px">'+yearOptions('')+'</select></label>':'')+(reg?'<label style="font-weight:400"><input type="checkbox" id="epconsent" required> Confirmo que sou o encarregado de educação ou tenho autorização para criar esta conta.</label><p class="ephelp">Não uses o nome completo da criança. O ranking é opcional e vem desativado.</p>':'')+'<div class="epactions"><button class="epbtn primary" type="submit">'+(reg?'Criar conta':reset?'Enviar email de recuperação':'Entrar')+'</button><button class="epbtn" type="button" id="epswitchmode">'+(reg?'Já tenho conta':reset?'Voltar ao login':'Criar conta')+'</button>'+(reg||reset?'':'<button class="epbtn" type="button" id="epforgot">Esqueci-me da password</button>')+'</div></form>',reg?'📝 Criar conta no Estuda+':reset?'🔑 Recuperar password':'🔐 Entrar no Estuda+');
+ show('<form id="epform">'+(reg?'<label>Nome ou pseudónimo<input id="epname" maxlength="32" autocomplete="nickname" required></label>':'')+'<label>Email<input id="epemail" type="email" autocomplete="email" required></label>'+(reset?'':'<label>Password<input id="eppass" type="password" minlength="6" autocomplete="'+(reg?'new-password':'current-password')+'" required></label>')+(reg?'<label>Tipo de conta<select id="epaccounttype" style="box-sizing:border-box;width:100%;padding:12px;margin:6px 0 12px"><option value="student">Aluno</option><option value="guardian">Encarregado de educação</option></select></label><label id="epyearwrap">Ano de escolaridade<select id="epyear" required style="box-sizing:border-box;width:100%;padding:12px;border:1px solid #adbed4;border-radius:9px;font:16px system-ui;margin:6px 0 12px">'+yearOptions('')+'</select></label>':'')+(reg?'<label style="font-weight:400"><input type="checkbox" id="epconsent" required> Confirmo que sou o encarregado de educação ou tenho autorização para criar esta conta.</label><p class="ephelp">Não uses o nome completo da criança. O ranking é opcional e vem desativado.</p>':'')+'<div class="epactions"><button class="epbtn primary" type="submit">'+(reg?'Criar conta':reset?'Enviar email de recuperação':'Entrar')+'</button><button class="epbtn" type="button" id="epswitchmode">'+(reg?'Já tenho conta':reset?'Voltar ao login':'Criar conta')+'</button>'+(reg||reset?'':'<button class="epbtn" type="button" id="epforgot">Esqueci-me da password</button>')+'</div></form>',reg?'📝 Criar conta no Estuda+':reset?'🔑 Recuperar password':'🔐 Entrar no Estuda+');
  const form=content.querySelector('#epform');
+ if(reg){const type=content.querySelector('#epaccounttype'),year=content.querySelector('#epyear'),wrap=content.querySelector('#epyearwrap');type.onchange=()=>{const isParent=type.value==='guardian';wrap.style.display=isParent?'none':'';year.required=!isParent;if(isParent)year.value=''};}
  content.querySelector('#epswitchmode').onclick=()=>authView(reg||reset?'login':'register');
  if(!reg&&!reset)content.querySelector('#epforgot').onclick=()=>authView('reset');
  form.onsubmit=async e=>{e.preventDefault();const btn=form.querySelector('[type=submit]');btn.disabled=true;message('Aguarda... ',true);
  try{const email=content.querySelector('#epemail').value.trim(),pass=content.querySelector('#eppass')?.value;
  if(reset){await sendPasswordResetEmail(auth,email);message('Se existir uma conta com este email, receberás instruções para recuperar a password.',true);return}
- if(reg){const name=document.getElementById('epname').value.trim(),schoolYear=document.getElementById('epyear').value;if(!schoolYears.includes(schoolYear))throw Error('Escolhe o ano escolar.');if(name.length<2)throw Error('O nome deve ter pelo menos dois caracteres.');if(!document.getElementById('epconsent').checked)throw Error('É necessária a confirmação do encarregado de educação.');creatingAccount=true;const cred=await createUserWithEmailAndPassword(auth,email,pass);await updateProfile(cred.user,{displayName:name});await setDoc(doc(db,'users',cred.user.uid),{name,schoolYear,avatar:defaultAvatar,rankingOptIn:false,completed:0,points:0,createdAt:serverTimestamp()});creatingAccount=false;await initSession(cred.user);}
+ if(reg){const name=document.getElementById('epname').value.trim(),role=document.getElementById('epaccounttype').value,schoolYear=role==='guardian'?'':document.getElementById('epyear').value;if(role!=='guardian'&&!schoolYears.includes(schoolYear))throw Error('Escolhe o ano escolar.');if(name.length<2)throw Error('O nome deve ter pelo menos dois caracteres.');if(!document.getElementById('epconsent').checked)throw Error('É necessária a confirmação do encarregado de educação.');creatingAccount=true;const cred=await createUserWithEmailAndPassword(auth,email,pass);await updateProfile(cred.user,{displayName:name});await setDoc(doc(db,'users',cred.user.uid),{name,schoolYear,role,avatar:defaultAvatar,rankingOptIn:false,completed:0,points:0,createdAt:serverTimestamp()});creatingAccount=false;await initSession(cred.user);}
  else await signInWithEmailAndPassword(auth,email,pass);
  }catch(err){creatingAccount=false;message(authError(err))}finally{btn.disabled=false}};
 }
@@ -247,6 +248,61 @@ async function epRecommendations(){
 const epRecommendButton=el('button',{id:'eprecommendbtn',type:'button'},'🎯 Recomendações');
 bar.querySelector('#ephbtn').before(epRecommendButton);
 epRecommendButton.onclick=async()=>{if(!user)return;try{await loadHistory();await epRecommendations()}catch(e){show('<p>'+esc(e.message||'Erro ao carregar recomendações.')+'</p><button class="epbtn" id="eprdone">Fechar</button>','Erro nas recomendações');document.getElementById('eprdone').onclick=hide}};
+
+
+// V54: Family dashboard. An individual student must grant access explicitly.
+const epFamilyButton=el('button',{id:'epfamilybtn',type:'button'},'👨‍👩‍👧 Família');
+bar.querySelector('#ephbtn').before(epFamilyButton);
+const epUidOK=id=>/^[A-Za-z0-9]{20,128}$/.test(String(id||''));
+function epFamilyHome(){
+ if(!user)return;
+ show('<p>O acesso aos resultados de um aluno só é possível depois de esse aluno autorizar o encarregado de educação. Não partilhes passwords.</p>'+
+ '<div style="background:#f0f6ff;padding:12px;border-radius:12px"><strong>O meu código de conta</strong><p style="overflow-wrap:anywhere;font-family:monospace">'+esc(user.uid)+'</p><button class="epbtn" id="epcopyuid">Copiar código</button></div>'+
+ '<h3>Autorizar um encarregado</h3><p class="ephelp">Na conta do aluno, introduz o código da conta do encarregado. O acesso pode ser revogado a qualquer momento.</p><label>Código do encarregado<input id="epguardianuid" placeholder="Código da conta do encarregado" autocomplete="off"></label><div class="epactions"><button class="epbtn primary" id="epgrant">Autorizar</button><button class="epbtn" id="epmanage">Gerir autorizações</button></div>'+
+ '<h3>Consultar resultados de um aluno</h3><p class="ephelp">Na conta do encarregado, introduz o código da conta do aluno que te autorizou.</p><label>Código do aluno<input id="epchilduid" placeholder="Código da conta do aluno" autocomplete="off"></label><div class="epactions"><button class="epbtn primary" id="epviewchild">Consultar evolução</button><button class="epbtn" id="epfamilyclose">Fechar</button></div>','👨‍👩‍👧 Área da família');
+ document.getElementById('epcopyuid').onclick=()=>navigator.clipboard?.writeText(user.uid).then(()=>message('Código copiado.',true)).catch(()=>message('Seleciona e copia o código acima.'));
+ document.getElementById('epfamilyclose').onclick=hide;
+ document.getElementById('epgrant').onclick=async()=>{
+  const id=document.getElementById('epguardianuid').value.trim();
+  if(!epUidOK(id)||id===user.uid){message('Introduz um código de encarregado válido e diferente do teu.');return}
+  if(!confirm('Confirmas que esta conta pertence ao encarregado de educação autorizado? Ele poderá consultar o teu perfil e histórico de fichas.'))return;
+  try{await setDoc(doc(db,'users',user.uid,'guardians',id),{createdAt:serverTimestamp()});message('Acesso autorizado. O encarregado já pode consultar os resultados.',true)}catch(e){message(authError(e))}
+ };
+ document.getElementById('epmanage').onclick=epFamilyManage;
+ document.getElementById('epviewchild').onclick=()=>epFamilyReport(document.getElementById('epchilduid').value.trim());
+}
+async function epFamilyManage(){
+ try{
+  const snap=await getDocs(collection(db,'users',user.uid,'guardians'));
+  show('<p>Estas contas podem consultar os teus resultados. Revoga qualquer acesso que já não pretendas manter.</p><div id="epguardians"></div><div class="epactions"><button class="epbtn" id="epbackfamily">Voltar</button></div>','🔒 Autorizações da família');
+  document.getElementById('epbackfamily').onclick=epFamilyHome;
+  const target=document.getElementById('epguardians');
+  if(snap.empty){target.textContent='Ainda não autorizaste nenhuma conta.';return}
+  for(const d of snap.docs){const row=el('div');row.style='display:flex;align-items:center;gap:10px;margin:10px 0;overflow-wrap:anywhere';const code=el('span',{},d.id);code.style='flex:1;font-family:monospace;font-size:12px';const btn=el('button',{class:'epbtn',type:'button'},'Revogar');btn.onclick=async()=>{if(!confirm('Revogar o acesso desta conta?'))return;try{const {deleteDoc}=await import('https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js');await deleteDoc(doc(db,'users',user.uid,'guardians',d.id));row.remove();message('Acesso revogado.',true)}catch(e){message(authError(e))}};row.append(code,btn);target.append(row)}
+ }catch(e){show('<p>'+esc(authError(e))+'</p><button class="epbtn" id="epbackfamily">Voltar</button>','Erro');document.getElementById('epbackfamily').onclick=epFamilyHome}
+}
+async function epFamilyReport(id){
+ if(!epUidOK(id)||id===user.uid){message('Introduz o código válido da conta do aluno.');return}
+ try{
+  // Firestore rules independently verify the student's authorization.
+  const [pSnap,hSnap]=await Promise.all([getDoc(doc(db,'users',id)),getDocs(query(collection(db,'users',id,'history'),orderBy('date','desc'),limit(500)))]);
+  if(!pSnap.exists())throw Error('Não foi possível encontrar o perfil autorizado.');
+  const student=pSnap.data(),items=hSnap.docs.map(x=>x.data());
+  const percentages=items.map(x=>{const t=String(x.score||'');const m=t.match(/(\d+(?:[.,]\d+)?)\s*%/);if(m)return Number(m[1].replace(',','.'));const a=t.match(/(\d+)\s*\/\s*(\d+)/);return a&&Number(a[2])?100*Number(a[1])/Number(a[2]):null}).filter(x=>x!==null);
+  const avg=percentages.length?Math.round(percentages.reduce((a,b)=>a+b,0)/percentages.length)+'%':'—';
+  const recent=items.slice(0,100);
+  const subjects={};for(const x of items){const k=String(x.subject||'Sem disciplina');subjects[k]=(subjects[k]||0)+1}
+  const subjectHtml=Object.entries(subjects).sort((a,b)=>b[1]-a[1]).slice(0,10).map(([k,v])=>'<li>'+esc(k)+': '+v+' fichas</li>').join('');
+  const rows=recent.map(x=>'<tr><td>'+esc(x.date?new Date(x.date).toLocaleDateString('pt-PT'):'—')+'</td><td>'+esc(x.subject||'—')+'</td><td>'+esc(x.title||'—')+'</td><td>'+esc(x.score||'—')+'</td></tr>').join('');
+  show('<p>Consulta apenas de leitura, autorizada pela conta do aluno.</p><h3>'+esc(student.name||'Aluno')+' · '+esc(student.schoolYear||'Ano não definido')+'</h3>'+
+  '<div style="display:flex;flex-wrap:wrap;gap:10px">'+[['Fichas realizadas',items.length],['Média de resultados',avg],['Pontos acumulados',student.points||0]].map(([k,v])=>'<div style="flex:1;min-width:120px;background:#eef5ff;border-radius:12px;padding:12px"><small>'+esc(k)+'</small><h3>'+esc(v)+'</h3></div>').join('')+'</div>'+
+  '<h3>Disciplinas estudadas</h3>'+(subjectHtml?'<ul>'+subjectHtml+'</ul>':'<p>Ainda não há resultados.</p>')+
+  '<h3>Últimas fichas</h3><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse"><thead><tr><th>Data</th><th>Disciplina</th><th>Ficha</th><th>Resultado</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
+  '<p class="ephelp">São apresentados até 500 resultados do histórico e até 100 linhas na tabela. O aluno pode revogar esta autorização na sua conta.</p><div class="epactions"><button class="epbtn" id="epbackfamily">Voltar</button></div>','📊 Acompanhamento escolar');
+  document.getElementById('epbackfamily').onclick=epFamilyHome;
+ }catch(e){show('<p>Não foi possível consultar os resultados. Confirma que o aluno autorizou o código da tua conta.</p><p class="ephelp">'+esc(authError(e))+'</p><button class="epbtn" id="epbackfamily">Voltar</button>','Acesso não autorizado');document.getElementById('epbackfamily').onclick=epFamilyHome}
+}
+epFamilyButton.onclick=epFamilyHome;
 
 rankingPanel();
 const epProgressButton=el('button',{id:'epprogressbtn',type:'button'},'🌟 Conquistas');bar.querySelector('#ephbtn').before(epProgressButton);epProgressButton.onclick=async()=>{if(!user)return;try{await loadHistory();epProgressView()}catch(e){show('<p>'+esc(authError(e))+'</p>','Erro nas conquistas')}};
