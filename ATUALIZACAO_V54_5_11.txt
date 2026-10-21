@@ -1,0 +1,4 @@
+Estuda+ v54.5.11
+Correção: importar updateDoc do Firebase Firestore para permitir guardar o avatar do encarregado de educação.
+Referências de cache firebase-app.js atualizadas para 54.5.11.
+Sem alterações às regras Firestore ou dados de utilizadores.
