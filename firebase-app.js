@@ -253,6 +253,35 @@ epRecommendButton.onclick=async()=>{if(!user)return;try{await loadHistory();awai
 // V54: Family dashboard. An individual student must grant access explicitly.
 const epFamilyButton=el('button',{id:'epfamilybtn',type:'button'},'👨‍👩‍👧 Família');
 bar.querySelector('#ephbtn').before(epFamilyButton);
+// V54.5.4: alerta em tempo real apenas para alunos autenticados.
+const epFamilyBadge=el('span',{id:'epfamilybadge','aria-label':'Pedidos familiares pendentes'});
+epFamilyBadge.setAttribute('aria-live','polite');
+epFamilyBadge.style.cssText='display:none;align-items:center;justify-content:center;min-width:21px;height:21px;padding:0 5px;box-sizing:border-box;border-radius:99px;background:#dc2626;color:#fff;font:bold 12px system-ui;margin-left:7px;box-shadow:0 0 0 2px #fff';
+epFamilyButton.appendChild(epFamilyBadge);
+let epFamilyRequestsUnsubscribe=null;
+function epStopFamilyNotifications(){
+ if(epFamilyRequestsUnsubscribe){epFamilyRequestsUnsubscribe();epFamilyRequestsUnsubscribe=null}
+ epFamilyBadge.style.display='none';epFamilyBadge.textContent='';
+ epFamilyButton.setAttribute('aria-label','Família');
+}
+function epStartFamilyNotifications(){
+ epStopFamilyNotifications();
+ if(!user||profile?.role==='guardian')return;
+ const accountUid=user.uid;
+ epFamilyRequestsUnsubscribe=onSnapshot(collection(db,'users',accountUid,'requests'),snapshot=>{
+  if(user?.uid!==accountUid)return;
+  const count=snapshot.size;
+  epFamilyBadge.textContent=count>99?'99+':String(count);
+  epFamilyBadge.style.display=count?'inline-flex':'none';
+  epFamilyButton.setAttribute('aria-label',count?`Família: ${count} pedido${count===1?'':'s'} pendente${count===1?'':'s'}`:'Família');
+  const pending=document.getElementById('eppending');
+  if(pending&&pending.isConnected&&!epIsGuardian())epFamilyPending();
+ },error=>{
+  console.warn('Estuda+ notificações familiares:',error);
+  epFamilyBadge.style.display='none';
+ });
+}
+
 const epUidOK=id=>/^[A-Za-z0-9]{20,128}$/.test(String(id||''));
 // The account role comes from the authenticated Firestore profile, not a UI selection.
 const epIsGuardian=()=>profile?.role==='guardian';
@@ -555,5 +584,5 @@ bar.querySelector('#epavbtn').onclick=()=>{if(user)editor()};
 bar.querySelector('#eplogout').onclick=async()=>{if(isQuiz&&started&&!recorded&&!confirm('O teste atual não será guardado. Queres sair?'))return;stopClock();if(user){try{sessionStorage.removeItem('ep_welcomed_'+user.uid)}catch(e){}}await signOut(auth);location.replace(new URL('./',import.meta.url).href)};
 // Block all interaction until Firebase establishes an authenticated session.
 show('<div class="epbook" aria-hidden="true"><span class="epcover"></span><span class="epleft"></span><span class="epright"></span><span class="eppage"></span><span class="eppage"></span><span class="eppage"></span></div><p style="text-align:center">'+(isQuiz?'A preparar a tua ficha…':'A entrar na tua conta…')+'</p>','📚 Estuda+');
-async function initSession(u){if(u&&user&&u.uid!==user.uid){location.replace(new URL('./',import.meta.url).href);return}user=u;profile=null;history=[];stopClock();started=0;recorded=false;if(!u){document.body.classList.remove('epguardian-mode');updateBar();authView();return}try{profile=await ensureProfile(u);updateBar();if(epIsGuardian()){const root=new URL('./',import.meta.url);if(location.pathname!==root.pathname){location.replace(root.href);return}hide();await epGuardianDashboard();return}document.body.classList.remove('epguardian-mode');await loadHistory();hide();if(isQuiz)await checkDailyLock();if(!dailyLocked)startClock();welcomeUser();loadRanking()}catch(e){show('<p>Não foi possível carregar o perfil: '+esc(authError(e))+'</p><div class="epactions"><button class="epbtn" id="epretry">Tentar novamente</button><button class="epbtn" id="epsignout">Sair</button></div>','Erro de ligação');document.getElementById('epretry').onclick=()=>location.reload();document.getElementById('epsignout').onclick=()=>signOut(auth)}}
+async function initSession(u){if(u&&user&&u.uid!==user.uid){location.replace(new URL('./',import.meta.url).href);return}epStopFamilyNotifications();user=u;profile=null;history=[];stopClock();started=0;recorded=false;if(!u){document.body.classList.remove('epguardian-mode');updateBar();authView();return}try{profile=await ensureProfile(u);updateBar();epStartFamilyNotifications();if(epIsGuardian()){const root=new URL('./',import.meta.url);if(location.pathname!==root.pathname){location.replace(root.href);return}hide();await epGuardianDashboard();return}document.body.classList.remove('epguardian-mode');await loadHistory();hide();if(isQuiz)await checkDailyLock();if(!dailyLocked)startClock();welcomeUser();loadRanking()}catch(e){show('<p>Não foi possível carregar o perfil: '+esc(authError(e))+'</p><div class="epactions"><button class="epbtn" id="epretry">Tentar novamente</button><button class="epbtn" id="epsignout">Sair</button></div>','Erro de ligação');document.getElementById('epretry').onclick=()=>location.reload();document.getElementById('epsignout').onclick=()=>signOut(auth)}}
 onAuthStateChanged(auth,u=>{if(!creatingAccount)initSession(u)});
