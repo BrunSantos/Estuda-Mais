@@ -254,24 +254,40 @@ epRecommendButton.onclick=async()=>{if(!user)return;try{await loadHistory();awai
 const epFamilyButton=el('button',{id:'epfamilybtn',type:'button'},'👨‍👩‍👧 Família');
 bar.querySelector('#ephbtn').before(epFamilyButton);
 const epUidOK=id=>/^[A-Za-z0-9]{20,128}$/.test(String(id||''));
+// The account role comes from the authenticated Firestore profile, not a UI selection.
+const epIsGuardian=()=>profile?.role==='guardian';
+const epFamilySavedKey=()=> 'estudamais-family-students-v54-1-'+(user?.uid||'');
+function epFamilySaved(){try{const ids=JSON.parse(localStorage.getItem(epFamilySavedKey())||'[]');return Array.isArray(ids)?ids.filter(epUidOK).slice(0,30):[]}catch{return []}}
+function epFamilyRemember(id){const ids=[id,...epFamilySaved().filter(x=>x!==id)].slice(0,30);try{localStorage.setItem(epFamilySavedKey(),JSON.stringify(ids))}catch{}}
+function epFamilyForget(id){try{localStorage.setItem(epFamilySavedKey(),JSON.stringify(epFamilySaved().filter(x=>x!==id)))}catch{}}
 function epFamilyHome(){
  if(!user)return;
- show('<p>O acesso aos resultados de um aluno só é possível depois de esse aluno autorizar o encarregado de educação. Não partilhes passwords.</p>'+
- '<div style="background:#f0f6ff;padding:12px;border-radius:12px"><strong>O meu código de conta</strong><p style="overflow-wrap:anywhere;font-family:monospace">'+esc(user.uid)+'</p><button class="epbtn" id="epcopyuid">Copiar código</button></div>'+
- '<h3>Autorizar um encarregado</h3><p class="ephelp">Na conta do aluno, introduz o código da conta do encarregado. O acesso pode ser revogado a qualquer momento.</p><label>Código do encarregado<input id="epguardianuid" placeholder="Código da conta do encarregado" autocomplete="off"></label><div class="epactions"><button class="epbtn primary" id="epgrant">Autorizar</button><button class="epbtn" id="epmanage">Gerir autorizações</button></div>'+
- '<h3>Consultar resultados de um aluno</h3><p class="ephelp">Na conta do encarregado, introduz o código da conta do aluno que te autorizou.</p><label>Código do aluno<input id="epchilduid" placeholder="Código da conta do aluno" autocomplete="off"></label><div class="epactions"><button class="epbtn primary" id="epviewchild">Consultar evolução</button><button class="epbtn" id="epfamilyclose">Fechar</button></div>','👨‍👩‍👧 Área da família');
+ const parent=epIsGuardian();
+ const intro=parent?'Consulta os resultados dos alunos que autorizaram a tua conta. A autorização é sempre controlada pelo aluno.':'Autoriza um encarregado de educação a consultar os teus resultados. Podes revogar o acesso a qualquer momento.';
+ const common='<p>'+intro+'</p><div style="background:#f0f6ff;padding:12px;border-radius:12px"><strong>O meu código de conta</strong><p style="overflow-wrap:anywhere;font-family:monospace">'+esc(user.uid)+'</p><button class="epbtn" id="epcopyuid">Copiar código</button></div>';
+ const studentHtml='<h3>Autorizar um encarregado</h3><p class="ephelp">Introduz o código da conta do encarregado de educação.</p><label>Código do encarregado<input id="epguardianuid" placeholder="Código da conta do encarregado" autocomplete="off"></label><div class="epactions"><button class="epbtn primary" id="epgrant">Autorizar</button><button class="epbtn" id="epmanage">Gerir autorizações</button></div>';
+ const saved=epFamilySaved();
+ const savedHtml=saved.length?'<h3>Alunos consultados anteriormente</h3><p class="ephelp">Lista guardada apenas neste navegador. Cada consulta verifica novamente a autorização no Firebase.</p><div id="epfamilysaved"></div>':'';
+ const parentHtml=savedHtml+'<h3>Consultar resultados de um aluno</h3><p class="ephelp">Introduz o código da conta de um aluno que te autorizou.</p><label>Código do aluno<input id="epchilduid" placeholder="Código da conta do aluno" autocomplete="off"></label><div class="epactions"><button class="epbtn primary" id="epviewchild">Consultar evolução</button></div>';
+ show(common+(parent?parentHtml:studentHtml)+'<div class="epactions"><button class="epbtn" id="epfamilyclose">Fechar</button></div>','👨‍👩‍👧 Área da família');
  document.getElementById('epcopyuid').onclick=()=>navigator.clipboard?.writeText(user.uid).then(()=>message('Código copiado.',true)).catch(()=>message('Seleciona e copia o código acima.'));
  document.getElementById('epfamilyclose').onclick=hide;
- document.getElementById('epgrant').onclick=async()=>{
-  const id=document.getElementById('epguardianuid').value.trim();
-  if(!epUidOK(id)||id===user.uid){message('Introduz um código de encarregado válido e diferente do teu.');return}
-  if(!confirm('Confirmas que esta conta pertence ao encarregado de educação autorizado? Ele poderá consultar o teu perfil e histórico de fichas.'))return;
-  try{await setDoc(doc(db,'users',user.uid,'guardians',id),{createdAt:serverTimestamp()});message('Acesso autorizado. O encarregado já pode consultar os resultados.',true)}catch(e){message(authError(e))}
- };
- document.getElementById('epmanage').onclick=epFamilyManage;
- document.getElementById('epviewchild').onclick=()=>epFamilyReport(document.getElementById('epchilduid').value.trim());
+ if(parent){
+  document.getElementById('epviewchild').onclick=()=>epFamilyReport(document.getElementById('epchilduid').value.trim());
+  const target=document.getElementById('epfamilysaved');
+  if(target)for(const id of saved){const row=el('div');row.style='display:flex;gap:8px;align-items:center;margin:8px 0;flex-wrap:wrap';const view=el('button',{class:'epbtn',type:'button'},'Consultar '+id.slice(0,8)+'…');view.onclick=()=>epFamilyReport(id);const forget=el('button',{class:'epbtn',type:'button'},'Retirar da lista');forget.onclick=()=>{epFamilyForget(id);row.remove()};row.append(view,forget);target.append(row)}
+ }else{
+  document.getElementById('epgrant').onclick=async()=>{
+   const id=document.getElementById('epguardianuid').value.trim();
+   if(!epUidOK(id)||id===user.uid){message('Introduz um código de encarregado válido e diferente do teu.');return}
+   if(!confirm('Confirmas que esta conta pertence ao encarregado de educação autorizado? Ele poderá consultar o teu perfil e histórico de fichas.'))return;
+   try{await setDoc(doc(db,'users',user.uid,'guardians',id),{createdAt:serverTimestamp()});message('Acesso autorizado. O encarregado já pode consultar os resultados.',true)}catch(e){message(authError(e))}
+  };
+  document.getElementById('epmanage').onclick=epFamilyManage;
+ }
 }
 async function epFamilyManage(){
+ if(epIsGuardian()){epFamilyHome();return}
  try{
   const snap=await getDocs(collection(db,'users',user.uid,'guardians'));
   show('<p>Estas contas podem consultar os teus resultados. Revoga qualquer acesso que já não pretendas manter.</p><div id="epguardians"></div><div class="epactions"><button class="epbtn" id="epbackfamily">Voltar</button></div>','🔒 Autorizações da família');
@@ -282,11 +298,13 @@ async function epFamilyManage(){
  }catch(e){show('<p>'+esc(authError(e))+'</p><button class="epbtn" id="epbackfamily">Voltar</button>','Erro');document.getElementById('epbackfamily').onclick=epFamilyHome}
 }
 async function epFamilyReport(id){
+ if(!epIsGuardian()){message('A consulta de alunos está disponível apenas para encarregados de educação.');return}
  if(!epUidOK(id)||id===user.uid){message('Introduz o código válido da conta do aluno.');return}
  try{
   // Firestore rules independently verify the student's authorization.
   const [pSnap,hSnap]=await Promise.all([getDoc(doc(db,'users',id)),getDocs(query(collection(db,'users',id,'history'),orderBy('date','desc'),limit(500)))]);
   if(!pSnap.exists())throw Error('Não foi possível encontrar o perfil autorizado.');
+  epFamilyRemember(id);
   const student=pSnap.data(),items=hSnap.docs.map(x=>x.data());
   const percentages=items.map(x=>{const t=String(x.score||'');const m=t.match(/(\d+(?:[.,]\d+)?)\s*%/);if(m)return Number(m[1].replace(',','.'));const a=t.match(/(\d+)\s*\/\s*(\d+)/);return a&&Number(a[2])?100*Number(a[1])/Number(a[2]):null}).filter(x=>x!==null);
   const avg=percentages.length?Math.round(percentages.reduce((a,b)=>a+b,0)/percentages.length)+'%':'—';

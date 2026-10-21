@@ -1,0 +1,10 @@
+Estuda+ v54.1 — Área da Família por tipo de conta
+
+Aluno: código pessoal, autorizar encarregado e gerir autorizações.
+Encarregado: código pessoal, consultar alunos autorizados e lista de códigos anteriormente consultados.
+A lista de alunos é guardada apenas neste navegador; cada consulta continua a exigir permissão no Firestore.
+Contas antigas sem campo role são tratadas como alunos.
+
+Substituir todos os ficheiros no repositório, sem apagar .git; Commit e Push no GitHub Desktop.
+Não há alterações às regras do Firestore nesta atualização.
+Testar com duas contas antes de disponibilizar a crianças.
