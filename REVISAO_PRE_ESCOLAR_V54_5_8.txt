@@ -1,0 +1,6 @@
+Estuda+ v54.5.8 — Revisão das 100 fichas da Pré-Escolar
+
+600 perguntas revistas e distribuídas por 20 temas; seis perguntas por ficha.
+Conteúdo mais variado e sem repetição textual dentro das fichas.
+Preservados os ficheiros JavaScript de Firebase, ranking e Área da Família da v54.5.7.
+Nota: atividades de leitura devem ser acompanhadas por adulto para crianças ainda não leitoras.

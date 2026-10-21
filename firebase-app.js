@@ -10,7 +10,8 @@ const yearOptions=selected=>'<option value="">Escolhe o ano</option>'+schoolYear
 const portugalDay=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Lisbon',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
 const quizKey=()=>Array.from(new TextEncoder().encode(location.pathname)).map(b=>b.toString(16).padStart(2,'0')).join('');
 let dailyLocked=false;
-const isQuiz=!!document.getElementById('result') && !!document.querySelector('button[onclick*="correct"], #check, #finish, button[onclick*="corrig"]');
+const isPreschoolQuiz=location.pathname.includes('/pre-escolar/') && !!document.getElementById('feedback') && !!document.getElementById('correct');
+const isQuiz=isPreschoolQuiz || (!!document.getElementById('result') && !!document.querySelector('button[onclick*="correct"], #check, #finish, button[onclick*="corrig"]'));
 let user=null,profile=null,history=[],ranking=[],unsubscribe=null,started=0,clock=null,recorded=false,creatingAccount=false,editorDraft={...defaultAvatar};
 const fmt=n=>{n=Math.max(0,Math.floor(n));return [Math.floor(n/3600),Math.floor(n%3600/60),n%60].map(x=>String(x).padStart(2,'0')).join(':')};
 const el=(tag,attrs={},text='')=>{const e=document.createElement(tag);for(const [k,v] of Object.entries(attrs))e.setAttribute(k,v);if(text)e.textContent=text;return e};
@@ -83,7 +84,7 @@ function renderRanking(){const t=document.getElementById('eprankingtable');if(!t
 function scoreInfo(text){
  const raw=String(text||'');
  // Formato habitual: "Resultado: 6 de 8" ou "Resultado: 6/8".
- let m=raw.match(/Resultado:\s*(\d+)\s*(?:de|\/)\s*(\d+)/i);
+ let m=raw.match(/Resultado:\s*(\d+)\s*(?:de|\/)\s*(\d+)/i) || (isPreschoolQuiz ? raw.match(/Terminaste!\s*Acertaste\s+(\d+)\s+de\s+(\d+)/i) : null);
  // Fichas de Ciências do 5.º ano: "Resultado: 75%" e "6 respostas certas em 8".
  if(!m){
   const counts=raw.match(/(\d+)\s+respostas?\s+certas?\s+em\s+(\d+)/i);
@@ -121,9 +122,9 @@ function celebrate(score){
 }
 
 async function detectResult(){if(!user||!isQuiz||recorded||dailyLocked)return;
- const result=document.getElementById('result'),txt=result?.textContent?.trim()||'',score=scoreInfo(txt);if(!score){if(txt && /resultado/i.test(txt)){let warning=document.getElementById('epresultnotice');if(!warning){warning=el('p',{id:'epresultnotice'});result.insertAdjacentElement('afterend',warning)}warning.textContent='Não foi possível interpretar o resultado desta ficha. O resultado ainda não foi guardado.';warning.style.color='#a32929'}return;}
- const radios=[...document.querySelectorAll('input[type="radio"]')];if(!radios.some(r=>r.checked)){let warning=document.getElementById('epresultnotice');if(!warning){warning=el('p',{id:'epresultnotice'});result.insertAdjacentElement('afterend',warning)}warning.textContent='Seleciona pelo menos uma resposta para guardar a ficha.';warning.style.color='#a32929';return;}
- recorded=true;stopClock();const parts=location.pathname.split('/').filter(Boolean),folder=parts[parts.length-2]||'',year=/^\d+ano$/.test(folder)?folder.replace('ano','.º ano'):'—';const seconds=started?Math.round((Date.now()-started)/1000):0;
+ const result=document.getElementById(isPreschoolQuiz?'feedback':'result'),txt=result?.textContent?.trim()||'',score=scoreInfo(txt);if(!score){if(txt && /resultado/i.test(txt)){let warning=document.getElementById('epresultnotice');if(!warning){warning=el('p',{id:'epresultnotice'});result.insertAdjacentElement('afterend',warning)}warning.textContent='Não foi possível interpretar o resultado desta ficha. O resultado ainda não foi guardado.';warning.style.color='#a32929'}return;}
+ const radios=[...document.querySelectorAll('input[type="radio"]')];if(!isPreschoolQuiz && !radios.some(r=>r.checked)){let warning=document.getElementById('epresultnotice');if(!warning){warning=el('p',{id:'epresultnotice'});result.insertAdjacentElement('afterend',warning)}warning.textContent='Seleciona pelo menos uma resposta para guardar a ficha.';warning.style.color='#a32929';return;}
+ recorded=true;stopClock();const parts=location.pathname.split('/').filter(Boolean),folder=parts[parts.length-2]||'',year=folder==='pre-escolar'?'Pré-Escolar':/^\d+ano$/.test(folder)?folder.replace('ano','.º ano'):'—';const seconds=started?Math.round((Date.now()-started)/1000):0;
  const item={date:new Date().toISOString(),year,subject:(document.querySelector('header p')?.textContent||'').split('·')[0].trim().slice(0,80)||'—',title:(document.querySelector('h1')?.textContent||document.title).trim().slice(0,150),score:txt.slice(0,150),seconds,duration:fmt(seconds),file:location.pathname};
  const oldNotice=document.getElementById('epresultnotice');if(oldNotice)oldNotice.remove();const notice=el('p',{id:'epresultnotice'});notice.style='font-weight:700;color:#a32929';notice.textContent='A guardar o resultado...';result?.insertAdjacentElement('afterend',notice);
  try{
@@ -153,7 +154,7 @@ async function detectResult(){if(!user||!isQuiz||recorded||dailyLocked)return;
 // A correção de cada ficha escreve em #result. Observar o resultado é mais seguro
 // do que depender do texto ou do onclick de um botão específico.
 if(isQuiz){
- const resultNode=document.getElementById('result');
+ const resultNode=document.getElementById(isPreschoolQuiz?'feedback':'result');
  if(resultNode){
   let pending=null;
   const observer=new MutationObserver(()=>{
