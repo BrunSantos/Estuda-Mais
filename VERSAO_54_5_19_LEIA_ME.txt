@@ -1,0 +1,4 @@
+Estuda+ 54.5.19
+Ano obrigatório no registo de aluno; depois só administrador altera.
+Publicar firestore.rules na consola Firebase e atualizar o repositório GitHub.
+Os perfis existentes sem ano devem ser corrigidos pelo administrador.
