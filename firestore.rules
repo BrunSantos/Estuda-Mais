@@ -21,7 +21,7 @@ service cloud.firestore {
       && request.resource.data.get('points',0) is int
       && request.resource.data.get('points',0) >= resource.data.get('points',0)
       && request.resource.data.get('points',0) <= resource.data.get('points',0) + 500
-      && request.resource.data.rankingOptIn is bool && request.resource.data.get('schoolYear','') is string));
+      && request.resource.data.rankingOptIn is bool && request.resource.data.get('schoolYear','') is string;
    allow delete: if false;
    match /requests/{guardianUid} {
     allow get: if owner(uid) || (signedIn() && request.auth.uid == guardianUid);
