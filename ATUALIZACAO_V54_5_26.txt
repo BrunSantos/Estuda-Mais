@@ -1,0 +1,1 @@
+Estuda+ v54.5.26 — fichas com data de publicação mais recente surgem no início da grelha. O selo NOVO continua a durar apenas 14 dias; a posição não muda após esse prazo.
