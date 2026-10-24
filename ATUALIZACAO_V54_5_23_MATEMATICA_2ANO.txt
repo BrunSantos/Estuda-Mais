@@ -1,0 +1,5 @@
+Estuda+ v54.5.23 — 7 novas fichas de Matemática do 2.º ano (140 perguntas).
+Novos ficheiros 2ano/matematica_mat2_*.html e ligações em 2ano/index.html.
+Reutilizam firebase-app-54-5-21.js para autenticação, cronómetro, histórico, ranking e bloqueio diário.
+Não é necessário alterar regras Firestore.
+Publicação: substituir o conteúdo do repositório mantendo .git, Commit e Push no GitHub Desktop.
