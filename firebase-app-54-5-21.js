@@ -4,6 +4,8 @@ import {getFirestore,doc,getDoc,setDoc,collection,getDocs,query,orderBy,limit,wr
 import {defaultAvatar,choices,avSvg,avHtml} from './firebase-avatar.js?v=54.5.15';
 const config={apiKey:'AIzaSyC5c1ZCjTLcNZeuSTcVdSulEuvgaRRecW4',authDomain:'estudamais-d319f.firebaseapp.com',projectId:'estudamais-d319f',storageBucket:'estudamais-d319f.firebasestorage.app',messagingSenderId:'534502111585',appId:'1:534502111585:web:7b90fe11254cc7fd81ed20'};
 const app=initializeApp(config),auth=getAuth(app),db=getFirestore(app);
+let epParentPractice=false;
+
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const schoolYears=['Pré-Escolar',...Array.from({length:12},(_,i)=>(i+1)+'.º ano')];
 const epGradeIndex=y=>schoolYears.indexOf(y);
@@ -131,12 +133,77 @@ function lockQuiz(){
  stopClock();
  const buttons=[...document.querySelectorAll('button')].filter(b=>!b.closest('#epbar,#epoverlay')&&/corrig|verificar|terminar|concluir|check|repetir|reiniciar|reset/i.test((b.textContent||'')+' '+b.id+' '+(b.getAttribute('onclick')||'')));
  buttons.forEach(b=>{b.disabled=true;b.title='Ficha concluída hoje — disponível amanhã';b.style.opacity='.5'});
+ document.querySelectorAll('main input, main select, main textarea').forEach(control=>{control.disabled=true});
+}
+// V54.5.29: A autorização parental usa uma segunda instância Firebase Auth.
+// Nunca se usa signInWithEmailAndPassword(auth,...) na sessão principal do aluno.
+async function epParentUnlock(){
+ if(!user || profile?.role==='guardian')return;
+ const studentUid=user.uid;
+ const associated=await getDocs(collection(db,'users',studentUid,'guardians'));
+ if(associated.empty){show('<p>Esta conta ainda não tem um encarregado de educação associado. Faz primeiro a associação no painel Família.</p><div class="epactions"><button class="epbtn" id="epunlockclose">Fechar</button></div>','🔒 Desbloqueio parental');document.getElementById('epunlockclose').onclick=hide;return;}
+ show('<p>Um encarregado de educação associado pode autorizar uma nova tentativa desta ficha. A repetição não atribui pontos adicionais.</p><form id="epunlockform"><label>Email do encarregado<input id="epunlockemail" type="email" autocomplete="username" required></label><label>Password do encarregado<input id="epunlockpassword" type="password" autocomplete="current-password" required></label><div class="epactions"><button class="epbtn primary" type="submit">🔓 Autorizar repetição</button><button class="epbtn" type="button" id="epunlockcancel">Cancelar</button></div></form><p class="ephelp">A sessão do aluno mantém-se ativa. A password não é guardada.</p>','🔓 Desbloquear ficha');
+ document.getElementById('epunlockcancel').onclick=hide;
+ document.getElementById('epunlockform').onsubmit=async e=>{
+  e.preventDefault();const submit=e.currentTarget.querySelector('[type=submit]');submit.disabled=true;
+  let secondaryApp=null;
+  try{
+   const [{initializeApp:getInit,deleteApp,getApps},{getAuth:getSecondaryAuth,signInWithEmailAndPassword:login,signOut:logout},{getFirestore:getSecondaryDb,getDoc:getSecondaryDoc,doc:getSecondaryRef}]=await Promise.all([
+    import('https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js'),
+    import('https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js'),
+    import('https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js')
+   ]);
+   secondaryApp=getApps().find(a=>a.name==='estuda-parent-verification')||getInit(config,'estuda-parent-verification');
+   const secondaryAuth=getSecondaryAuth(secondaryApp);
+   // Isolar a sessão temporária do encarregado da sessão persistente do aluno.
+   const {setPersistence,inMemoryPersistence}=await import('https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js');
+   await setPersistence(secondaryAuth,inMemoryPersistence);
+   const cred=await login(secondaryAuth,document.getElementById('epunlockemail').value.trim(),document.getElementById('epunlockpassword').value);
+   const parentUid=cred.user.uid;
+   if(!associated.docs.some(d=>d.id===parentUid))throw Error('Esta conta não está associada a este aluno.');
+   const parentSnap=await getSecondaryDoc(getSecondaryRef(getSecondaryDb(secondaryApp),'users',parentUid));
+   if(parentSnap.data()?.role!=='guardian')throw Error('Esta conta não é de encarregado de educação.');
+   const linkSnap=await getSecondaryDoc(getSecondaryRef(getSecondaryDb(secondaryApp),'users',studentUid,'guardians',parentUid));
+   if(!linkSnap.exists())throw Error('A autorização familiar já não está ativa.');
+   await logout(secondaryAuth);
+   if(!user||user.uid!==studentUid)throw Error('A sessão do aluno foi alterada.');
+   epParentPractice=true;dailyLocked=false;recorded=false;
+   document.getElementById('epdailylock')?.remove();
+   document.querySelectorAll('main input,main select,main textarea').forEach(c=>c.disabled=false);
+   document.querySelectorAll('button').forEach(b=>{if(b.title==='Ficha concluída hoje — disponível amanhã'){b.disabled=false;b.style.opacity='';b.removeAttribute('title')}});
+   hide();startClock();
+   const info=el('div',{role:'status',id:'eppracticewarning'},'🔓 Repetição autorizada pelo encarregado · treino sem pontos adicionais hoje');
+   info.style='padding:12px;background:#e8f6ee;border:1px solid #9bc8ab;border-radius:10px;margin:12px 0;font-weight:700';
+   document.querySelector('main')?.prepend(info);
+  }catch(err){message(err.code?.startsWith('auth/')?'Não foi possível validar o email e a password.':(err.message||'Não foi possível autorizar.'));}
+  finally{if(secondaryApp){try{const {deleteApp}=await import('https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js');await deleteApp(secondaryApp)}catch(_){}}submit.disabled=false;}
+ };
+}
+// V54.5.28: bloquear no menu as fichas concluídas hoje, sem alterar o histórico.
+function epLockCompletedMenu(){
+ const today=portugalDay();
+ const completed=new Set(history.filter(h=>h.date && epLocalDay(h.date)===today && h.file).map(h=>new URL(h.file,location.href).pathname));
+ document.querySelectorAll('a[href$=".html"]').forEach(a=>{
+  const path=new URL(a.getAttribute('href'),location.href).pathname;
+  if(!completed.has(path) || a.dataset.epDailyLocked==='1')return;
+  a.dataset.epDailyLocked='1';a.setAttribute('aria-disabled','true');
+  const originalHref=a.getAttribute('href');a.removeAttribute('href');a.textContent='🔒 Concluída hoje';
+  a.title='Esta ficha volta a ficar disponível amanhã';
+  a.style.cssText+=';pointer-events:none;opacity:.65;cursor:not-allowed;background:#e3e9f1;color:#40536c';
+  const card=a.closest('article,.card,.ficha,.quiz-card')||a.parentElement;
+  if(card && !card.querySelector('.ep-daily-done')){
+   const tag=el('span',{class:'ep-daily-done'},' ✓ Feita hoje · disponível amanhã');
+   tag.style='display:block;margin:6px 0;color:#48637b;font-size:13px;font-weight:700';
+   a.insertAdjacentElement('afterend',tag);
+   const unlock=el('a',{href:originalHref},'🔓 Desbloquear ficha');unlock.style='display:inline-block;margin:7px 0;padding:8px 12px;border-radius:9px;background:#e8f2ff;color:#174c87;text-decoration:none;font-weight:700';unlock.addEventListener('click',e=>{e.preventDefault();sessionStorage.setItem('ep-unlock-target',new URL(originalHref,location.href).pathname);location.assign(originalHref)});tag.insertAdjacentElement('afterend',unlock);
+  }
+ });
 }
 async function checkDailyLock(){
  if(!user||!isQuiz)return;
  const today=portugalDay(),ref=doc(db,'users',user.uid,'daily',today+'_'+quizKey());
  const snap=await getDoc(ref);dailyLocked=snap.exists();
- if(dailyLocked){lockQuiz();const note=el('div',{id:'epdailylock',role:'status'});note.style='background:#fff4df;border:2px solid #efc66d;border-radius:12px;padding:16px;margin:16px 0;color:#67460b;font-weight:700';note.textContent='🔒 Já concluíste esta ficha hoje. Podes voltar amanhã para ganhar novos pontos!';document.querySelector('main')?.prepend(note)||bar.insertAdjacentElement('afterend',note)}
+ if(dailyLocked){lockQuiz();const note=el('div',{id:'epdailylock',role:'status'});note.style='background:#fff4df;border:2px solid #efc66d;border-radius:12px;padding:16px;margin:16px 0;color:#67460b;font-weight:700';note.textContent='🔒 Já concluíste esta ficha hoje. Podes voltar amanhã para ganhar novos pontos!';const unlock=el('button',{type:'button',class:'epbtn'},'🔓 Desbloquear ficha');unlock.style='display:block;margin-top:12px';unlock.onclick=()=>epParentUnlock().catch(e=>message(authError(e)));note.append(unlock);document.querySelector('main')?.prepend(note)||bar.insertAdjacentElement('afterend',note)}
 }
 function celebrate(score){
  const title=score.percent===100?'🏆 Perfeito!':score.percent>=80?'🌟 Parabéns!':score.percent>=50?'👏 Bom esforço!':'💪 Continua a praticar!';
@@ -148,8 +215,9 @@ function celebrate(score){
 async function detectResult(){if(!user||!isQuiz||recorded||dailyLocked)return;if(epGradeIndex(profile?.schoolYear||'')<0||epPageGrade()<epGradeIndex(profile?.schoolYear||'')){epGradeBlocked();return;}
  const result=document.getElementById(isPreschoolQuiz?'feedback':'result'),txt=result?.textContent?.trim()||'',score=scoreInfo(txt);if(!score){if(txt && /resultado/i.test(txt)){let warning=document.getElementById('epresultnotice');if(!warning){warning=el('p',{id:'epresultnotice'});result.insertAdjacentElement('afterend',warning)}warning.textContent='Não foi possível interpretar o resultado desta ficha. O resultado ainda não foi guardado.';warning.style.color='#a32929'}return;}
  const radios=[...document.querySelectorAll('input[type="radio"]')];if(!isPreschoolQuiz && !radios.some(r=>r.checked)){let warning=document.getElementById('epresultnotice');if(!warning){warning=el('p',{id:'epresultnotice'});result.insertAdjacentElement('afterend',warning)}warning.textContent='Seleciona pelo menos uma resposta para guardar a ficha.';warning.style.color='#a32929';return;}
- recorded=true;stopClock();const parts=location.pathname.split('/').filter(Boolean),folder=parts[parts.length-2]||'',year=folder==='pre-escolar'?'Pré-Escolar':/^\d+ano$/.test(folder)?folder.replace('ano','.º ano'):'—';const seconds=started?Math.round((Date.now()-started)/1000):0;
+ recorded=true;stopClock();const practiceOnly=epParentPractice;const parts=location.pathname.split('/').filter(Boolean),folder=parts[parts.length-2]||'',year=folder==='pre-escolar'?'Pré-Escolar':/^\d+ano$/.test(folder)?folder.replace('ano','.º ano'):'—';const seconds=started?Math.round((Date.now()-started)/1000):0;
  const item={date:new Date().toISOString(),year,subject:(document.querySelector('header p')?.textContent||'').split('·')[0].trim().slice(0,80)||'—',title:(document.querySelector('h1')?.textContent||document.title).trim().slice(0,150),score:txt.slice(0,150),seconds,duration:fmt(seconds),file:location.pathname};
+ if(practiceOnly){const practiceNote=el('p',{id:'epresultnotice'},'✓ Treino concluído. Sem pontos adicionais no ranking e sem substituir o resultado de hoje.');practiceNote.style='color:#087544;font-weight:700';result?.insertAdjacentElement('afterend',practiceNote);celebrate(score);return;}
  const oldNotice=document.getElementById('epresultnotice');if(oldNotice)oldNotice.remove();const notice=el('p',{id:'epresultnotice'});notice.style='font-weight:700;color:#a32929';notice.textContent='A guardar o resultado...';result?.insertAdjacentElement('afterend',notice);
  try{
   const key=quizKey(),day=portugalDay();
@@ -671,5 +739,5 @@ async function epAdminPanel(){
 }
 epAdminBtn.onclick=epAdminPanel;
 
-async function initSession(u){if(u&&user&&u.uid!==user.uid){location.replace(new URL('./',import.meta.url).href);return}epStopFamilyNotifications();epAdminEnabled=false;epAdminBtn.hidden=true;user=u;profile=null;history=[];stopClock();started=0;recorded=false;if(!u){document.body.classList.remove('epguardian-mode');updateBar();authView();return}try{profile=await ensureProfile(u);updateBar();await epAdminCheck();epStartFamilyNotifications();if(epIsGuardian()){const root=new URL('./',import.meta.url);if(location.pathname!==root.pathname){location.replace(root.href);return}hide();await epGuardianDashboard();return}document.body.classList.remove('epguardian-mode');await loadHistory();hide();if(isQuiz)await checkDailyLock();if(!epEnforceGrade())return;if(!dailyLocked)startClock();welcomeUser();loadRanking()}catch(e){show('<p>Não foi possível carregar o perfil: '+esc(authError(e))+'</p><div class="epactions"><button class="epbtn" id="epretry">Tentar novamente</button><button class="epbtn" id="epsignout">Sair</button></div>','Erro de ligação');document.getElementById('epretry').onclick=()=>location.reload();document.getElementById('epsignout').onclick=()=>signOut(auth)}}
+async function initSession(u){if(u&&user&&u.uid!==user.uid){location.replace(new URL('./',import.meta.url).href);return}epStopFamilyNotifications();epAdminEnabled=false;epAdminBtn.hidden=true;user=u;profile=null;history=[];stopClock();started=0;recorded=false;if(!u){document.body.classList.remove('epguardian-mode');updateBar();authView();return}try{profile=await ensureProfile(u);updateBar();await epAdminCheck();epStartFamilyNotifications();if(epIsGuardian()){const root=new URL('./',import.meta.url);if(location.pathname!==root.pathname){location.replace(root.href);return}hide();await epGuardianDashboard();return}document.body.classList.remove('epguardian-mode');await loadHistory();hide();if(!isQuiz)epLockCompletedMenu();if(isQuiz)await checkDailyLock();if(!epEnforceGrade())return;if(!dailyLocked)startClock();welcomeUser();loadRanking()}catch(e){show('<p>Não foi possível carregar o perfil: '+esc(authError(e))+'</p><div class="epactions"><button class="epbtn" id="epretry">Tentar novamente</button><button class="epbtn" id="epsignout">Sair</button></div>','Erro de ligação');document.getElementById('epretry').onclick=()=>location.reload();document.getElementById('epsignout').onclick=()=>signOut(auth)}}
 onAuthStateChanged(auth,u=>{if(!creatingAccount)initSession(u)});

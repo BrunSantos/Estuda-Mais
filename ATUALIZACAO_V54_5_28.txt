@@ -1,0 +1,1 @@
+V54.5.28 — bloqueio diário: fichas concluídas hoje assinaladas e indisponíveis nos menus; campos de resposta bloqueados ao reabrir ficha; cache do módulo Firebase atualizado. Mantém histórico, ranking, fichas e Firebase.

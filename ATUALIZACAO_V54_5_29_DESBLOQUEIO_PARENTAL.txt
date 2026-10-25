@@ -1,0 +1,13 @@
+Estuda+ v54.5.29 — Desbloqueio parental de fichas
+
+- Em fichas concluídas hoje aparece "Desbloquear ficha".
+- O encarregado introduz email e password da conta Estuda+.
+- A autenticação ocorre numa instância Firebase separada, com persistência apenas em memória.
+- É validado que a conta autenticada é um encarregado de educação associado ao aluno.
+- O desbloqueio vale apenas para a tentativa atual; atualizar a página volta a bloquear.
+- A repetição é para treino, sem novos pontos e sem substituir o resultado original do dia.
+- As restantes fichas, os dados de aluno e as regras Firestore mantêm-se.
+
+Nota: a validação é feita no cliente e a prevenção de atribuição duplicada de pontos continua a ser garantida pelo documento diário no Firestore. Para autorização auditável e à prova de manipulação do cliente, será necessário um serviço de backend (por exemplo, Cloud Functions) com regras adicionais.
+
+Teste com uma conta real de aluno e encarregado associado antes de publicar para todos.
