@@ -1,0 +1,7 @@
+Versão 54.4.2 — Correção da Área da Família
+- QR e código da conta apresentados apenas ao aluno.
+- Botão Fechar sempre visível no topo da janela.
+- Após autorizar: mensagem de sucesso e fecho automático após 1,4 segundos.
+- Após recusar: mensagem de confirmação.
+- Não é necessário alterar as regras do Firebase face à v54.4.
+- Validar com duas contas reais após publicação.

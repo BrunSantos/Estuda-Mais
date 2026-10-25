@@ -1,0 +1,16 @@
+Estuda+ versão 44 — ícone e nome do atalho
+
+GITHUB DESKTOP
+1. Abre Repository > Show in Finder para o repositório Estuda-Mais.
+2. Copia TODO o conteúdo desta pasta para a RAIZ do repositório (onde está index.html), substituindo os ficheiros quando solicitado.
+3. No GitHub Desktop: Summary "Ícone Estuda+ v44" > Commit to main > Push origin.
+4. Espera que GitHub Pages publique a atualização.
+5. No iPad/iPhone, remove o atalho antigo do ecrã principal e cria-o novamente pelo Safari > Partilhar > Adicionar ao ecrã principal.
+6. No Android, abre o site no Chrome > menu > Adicionar ao ecrã principal/Instalar aplicação.
+
+TERMINAL (TESTE LOCAL)
+cd [arrastar a pasta desta versão para o Terminal]
+python3 -m http.server 8000
+Abrir http://localhost:8000
+
+FIREBASE: não é necessário alterar as regras ou Authentication.

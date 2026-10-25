@@ -1,0 +1,1 @@
+v54.5.9 — Área da Família: apenas um botão Fechar; encarregados podem personalizar avatar através do botão 🎨 Avatar. A edição do encarregado grava apenas avatar em users/{uid}; não modifica pontos, ranking, escola nem ligações familiares.

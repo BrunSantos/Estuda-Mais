@@ -1,0 +1,10 @@
+ESTUDA+ v36 — Ranking por pontos e esforço
+
+1. Substituir TODOS os ficheiros da versão anterior pelos deste ZIP.
+2. Publicar as novas regras do ficheiro firestore.rules em Firebase Console > Firestore Database > Rules > Publish.
+3. Atualizar a página (Cmd+Shift+R no Safari).
+4. Testar uma ficha e voltar à página inicial.
+
+Pontos: 10 por concluir + 5 por resposta correta + 20 por >=80% ou +30 por 100%. A melhor tentativa por ficha conta para a classificação. O histórico regista todas as tentativas. Sem testes concluídos não há classificação. O ranking continua opcional.
+
+ATENÇÃO: Pontos guardados pelo navegador não são resistentes a manipulação deliberada. Para um ranking competitivo seguro será necessário cálculo num servidor confiável (Cloud Functions). Resultados antigos não são convertidos automaticamente em pontos.

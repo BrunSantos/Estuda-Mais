@@ -1,0 +1,1 @@
+V54.5.10: Corrige versão de cache de firebase-app.js em todas as páginas HTML. O botão Avatar para encarregados já existia no JavaScript v54.5.9, mas index.html carregava ?v=54.5.7.

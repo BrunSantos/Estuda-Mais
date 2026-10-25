@@ -1,0 +1,13 @@
+Estuda+ v46 revista — correção de problemas detetados
+
+- Retirado o mecanismo anterior de explicações genéricas e incorretamente mostradas.
+- Dicas matemáticas específicas apenas onde a operação/conceito é reconhecido com segurança.
+- Explicações de Ciências e História apenas para temas identificados.
+- Explicações após correção ligadas ao feedback efetivo nas fichas de modelo q0/q1.
+- Os exercícios sem explicação específica mantêm a correção original, sem texto inventado.
+- Os esquemas de Ciências só aparecem em questões com um tema reconhecido.
+
+LIMITAÇÕES: não foi possível rever manualmente cada questão nem testar num iPad real.
+A versão não garante cobertura pedagógica completa de todas as fichas.
+
+Publicação: extrair ZIP; copiar o conteúdo para a raiz do repositório sem apagar .git; GitHub Desktop Commit e Push.

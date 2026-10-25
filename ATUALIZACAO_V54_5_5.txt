@@ -1,0 +1,1 @@
+V54.5.5: sino vermelho com contador de pedidos pendentes; aviso amarelo quando a consulta ao Firestore falha; atualizacao de versao para evitar cache. O sino aparece apenas na conta do aluno destinatario. Nao requer alteracao de regras.

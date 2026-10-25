@@ -1,0 +1,15 @@
+ESTUDA+ v33 — FIREBASE
+
+1. Firebase Console > Authentication > Sign-in method > Email/Password: Enabled.
+2. Firestore Database > Rules: copiar TODO o conteúdo de firestore.rules e clicar Publish.
+3. Publicar TODOS os ficheiros desta pasta no repositório GitHub Pages, mantendo a estrutura.
+4. Firebase Authentication > Settings > Authorized domains: adicionar o domínio github.io do seu repositório (ex.: nome.github.io).
+5. Abrir o endereço HTTPS publicado. O login requer email e password; para criar contas de crianças deve existir autorização de um encarregado de educação.
+
+Atenção: abrir index.html como ficheiro local (file://) não é um teste válido da autenticação. Use HTTPS (GitHub Pages) ou um servidor local e configure o domínio autorizado.
+
+Os utilizadores antigos estavam guardados localmente; esta versão NÃO migra automaticamente esses históricos nem as contas antigas. Guarde os dados antigos antes de substituir a versão anterior.
+
+Ranking: adesão voluntária, desativada por defeito. Os resultados são registados no Firestore. Como as respostas e a contagem são processadas no navegador, o ranking não é resistente a manipulação intencional. Para validação antifraude será necessário um servidor/Cloud Functions.
+
+Esta versão não foi testada com ligação real ao seu projeto Firebase.

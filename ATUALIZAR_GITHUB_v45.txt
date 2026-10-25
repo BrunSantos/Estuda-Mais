@@ -1,0 +1,11 @@
+ESTUDA+ V45 — correções iPad e fichas
+
+- Botões de personalização do avatar: texto escuro sobre fundo claro, incluindo Safari/iPad.
+- Botão Corrigir respostas: desativado até todas as perguntas de escolha múltipla estarem respondidas.
+- Ao recomeçar uma ficha, a correção volta a ficar desativada.
+
+GITHUB DESKTOP:
+1. No GitHub Desktop, usa Repository > Show in Finder.
+2. Copia o CONTEÚDO deste ZIP para dentro da pasta do repositório, sem apagar a pasta .git.
+3. Commit to main > Push origin.
+4. No iPad, atualiza a página para obter a versão nova.

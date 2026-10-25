@@ -1,0 +1,5 @@
+Estuda+ v54.5.30 — Menu responsivo
+
+Em ecrãs até 900 px, as ações da barra superior são reunidas num botão ☰ Menu. Em ecrãs maiores, permanecem visíveis. Os botões e respetivas ações originais são preservados.
+
+Para publicar: substituir os ficheiros do projeto mantendo a pasta .git, fazer Commit e Push no GitHub Desktop.

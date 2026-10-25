@@ -1,0 +1,9 @@
+Estuda+ v54.3 — Painel exclusivo dos encarregados de educação
+
+1. Copiar todas as pastas e ficheiros para o repositório Estuda-Mais, sem apagar .git.
+2. GitHub Desktop: Commit to main e Push origin.
+3. Não é necessário alterar as regras do Firebase relativamente à v54.2.
+4. Entrar como encarregado na página principal. O catálogo de anos e fichas fica oculto, e surge o painel familiar.
+5. Usar "Associar aluno por código ou QR" para consultar um aluno autorizado; depois fica guardado neste navegador e aparece no painel.
+6. A autorização de leitura é sempre validada pelo Firestore. Os alunos não associados neste dispositivo não são descobertos automaticamente.
+7. Testar com duas contas reais antes de disponibilizar a outros utilizadores.

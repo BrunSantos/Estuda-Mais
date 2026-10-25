@@ -1,0 +1,1 @@
+Estuda+ 54.4.3 — Diagnóstico de associação familiar.\nO painel mostra o aluno autorizado mesmo que o histórico falhe, e apresenta erros do Firebase em vez de os ocultar.\nNão altera as regras Firestore.\nTeste com duas contas reais ainda necessário.\n

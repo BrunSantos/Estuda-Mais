@@ -1,0 +1,12 @@
+ESTUDA+ — PUBLICAÇÃO NO GITHUB PAGES
+
+1. Criar repositório público no GitHub (ex.: estudamais).
+2. Enviar o CONTEÚDO desta pasta para a raiz do repositório (index.html tem de ficar na raiz).
+3. Settings > Pages > Build and deployment > Deploy from a branch > main > /(root) > Save.
+4. Aguardar o URL https://UTILIZADOR.github.io/estudamais/
+5. Firebase Console > Authentication > Settings > Authorized domains: adicionar UTILIZADOR.github.io (sem https nem /estudamais).
+6. Testar login, avatar, ficha, histórico e ranking no Mac, iPad, iPhone e Android.
+
+Firebase Firestore: manter as regras atualmente publicadas se a versão 42 já está a funcionar.
+Atenção: o repositório é público; nunca enviar passwords, chaves privadas ou ficheiros de contas de serviço.
+Para testar localmente no Mac: abrir Terminal, escrever cd seguido de espaço, arrastar esta pasta e carregar Enter; depois python3 -m http.server 8000; abrir http://localhost:8000

@@ -1,0 +1,12 @@
+Estuda+ v54.5.21 — Preferências da conta
+
+- O botão 🎨 Avatar passa a ⚙️ Preferências.
+- O título do painel passa a ⚙️ Preferências da conta.
+- A personalização do avatar fica na secção própria.
+- Contas de aluno: secções Dados escolares (ano apenas leitura) e Privacidade e ranking.
+- Contas de encarregado: apenas a personalização do avatar, sem opções escolares.
+- Mantida a lógica de gravação e as regras do Firestore da versão base 54.5.20.
+- Novo ficheiro firebase-app-54-5-21.js para evitar cache antiga.
+
+Instalação: substituir os ficheiros no repositório, preservando .git; Commit e Push.
+Não é necessário alterar regras do Firestore nesta atualização de interface.

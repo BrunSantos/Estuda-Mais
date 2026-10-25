@@ -1,0 +1,7 @@
+Estuda+ 54.4.1 — Correção visual do Painel da Família
+
+- Separação de 12 px entre Associar aluno por código ou QR e Atualizar dados.
+- Botão de associação destacado.
+- Em ecrãs até 600 px, os botões ficam empilhados e ocupam a largura disponível.
+- Atualização do parâmetro de versão do script para evitar cache antiga.
+- Não são necessárias alterações às regras do Firebase.

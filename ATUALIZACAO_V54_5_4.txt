@@ -1,0 +1,7 @@
+Estuda+ 54.5.4 — Notificações familiares
+
+Alunos: sino vermelho e contador de pedidos pendentes no botão Família, sincronizado em tempo real com Firestore. Desaparece após autorizar/recusar. Encarregados não recebem este contador.
+
+Instalação: substituir ficheiros no repositório (preservar .git), commit e push. Mantém as regras firestore.rules da versão 54.5.3.
+
+A leitura de pedidos depende das regras e da ligação ao Firebase.

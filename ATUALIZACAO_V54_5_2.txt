@@ -1,0 +1,4 @@
+Estuda+ 54.5.2 — confirmação da cópia do código do aluno.
+A mensagem é mostrada diretamente abaixo do botão e distingue sucesso de falha.
+As referências ao firebase-app.js foram atualizadas para v=54.5.2 para evitar carregar a versão antiga em cache.
+Sem alterações às regras do Firestore.

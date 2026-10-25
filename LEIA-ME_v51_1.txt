@@ -1,0 +1,17 @@
+ESTUDA+ V51.1 — CORREÇÃO DO RANKING EM CIÊNCIAS DO 5.º ANO
+
+Correção: firebase-app.js reconhece agora o formato de resultado das fichas
+"Ambientes e habitats" e "O solo e a sua conservação" (percentagem e
+número de respostas certas). Antes o resultado aparecia na ficha, mas
+não era interpretado para atribuição de pontos no Firebase.
+
+As correções anteriores do contador (0 de 8) e do botão Recomeçar
+continuam presentes em ambas as fichas.
+
+Instalação: substituir todos os ficheiros do repositório pelo conteúdo
+deste ZIP, preservando .git, e fazer Commit to main / Push origin.
+Não é necessário alterar as regras Firebase caso já estejam publicadas
+as regras da V51.
+
+Testar com uma conta de aluno e ficha ainda não realizada nesse dia.
+A ficha só pode pontuar uma vez por dia.

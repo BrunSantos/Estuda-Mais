@@ -1,0 +1,1 @@
+Estuda+ v54.5.25 — fichas de Matemática 2.º ano na mesma grelha. As 7 fichas de 24/10/2026 apresentam NOVO durante 14 dias (24/10 a 06/11, inclusive), desaparecendo a 07/11. Para futuras fichas, adicionar data-added="AAAA-MM-DD" ao article.tile. Script partilhado: assets/fichas-novas.js.

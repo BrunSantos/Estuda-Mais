@@ -1,0 +1,10 @@
+Estuda+ versão 41 — Boas-vindas personalizadas.
+
+Ao iniciar sessão na página inicial, mostra um aviso de boas-vindas com pseudónimo e data da última visita neste navegador. A data é local a cada navegador, não sincronizada no Firestore. Não aparece novamente ao navegar entre fichas durante a mesma sessão.
+
+TERMINAL MAC:
+1. Abrir Terminal. Escrever cd seguido de um espaço e arrastar a pasta EstudaMais_v41. Enter.
+2. python3 -m http.server 8000
+3. Abrir http://localhost:8000
+
+FIRESTORE: Não alterar regras. AUTHENTICATION: Não alterar.

@@ -1,0 +1,12 @@
+Estuda+ 54.5.17 — ativação segura da administração
+
+1. No Firebase Console > Firestore Database > Dados, cria a coleção admins.
+2. Cria um documento cujo ID seja exatamente o UID da conta do Bruno (Firebase Authentication > Users).
+3. Adiciona o campo enabled (boolean) com valor true. O documento tem de ser criado no Firebase Console, nunca na aplicação.
+4. Publica o conteúdo do ficheiro firestore.rules em Firestore Database > Rules.
+5. Publica todos os ficheiros no GitHub, mantendo .git.
+6. Volta a entrar na conta do Bruno: aparecerá Administração.
+
+ATENÇÃO: a aplicação é estática; bloquear a interface não impede descarregar o HTML público diretamente. As regras Firestore impedem atribuir pontos por fichas abaixo do ano definido. A conta de aluno ainda pode aumentar o seu ano escolar; apenas o administrador o pode reduzir.
+
+O histórico de alterações regista administrador, aluno, novo ano e data, mas não o valor anterior.

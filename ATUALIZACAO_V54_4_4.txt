@@ -1,0 +1,7 @@
+Estuda+ 54.4.4 — correção de autorização familiar
+
+A autorização grava atomicamente o vínculo do aluno e do encarregado. Só depois elimina o pedido. Erros e operações demoradas aparecem diretamente junto dos botões.
+
+INSTALAÇÃO: substituir os ficheiros do repositório, preservar .git, Commit to main e Push origin.
+FIREBASE: confirmar que firestore.rules da versão 54.4 está publicada. Não é necessário alterar regras se já foram publicadas corretamente.
+TESTE: entrar como aluno, autorizar pedido, confirmar mensagem; entrar como encarregado e atualizar dados. Não foi testado em contas Firebase reais.
