@@ -1,0 +1,1 @@
+Estuda+ v54.5.31 — Todas as 100 fichas do 5.º ano têm 21 perguntas de escolha múltipla. Mantidas as perguntas existentes; adicionadas perguntas novas por disciplina. Mantidos Firebase, bloqueio diário, menu responsivo e restante estrutura.
