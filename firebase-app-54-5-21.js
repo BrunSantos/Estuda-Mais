@@ -740,4 +740,39 @@ async function epAdminPanel(){
 epAdminBtn.onclick=epAdminPanel;
 
 async function initSession(u){if(u&&user&&u.uid!==user.uid){location.replace(new URL('./',import.meta.url).href);return}epStopFamilyNotifications();epAdminEnabled=false;epAdminBtn.hidden=true;user=u;profile=null;history=[];stopClock();started=0;recorded=false;if(!u){document.body.classList.remove('epguardian-mode');updateBar();authView();return}try{profile=await ensureProfile(u);updateBar();await epAdminCheck();epStartFamilyNotifications();if(epIsGuardian()){const root=new URL('./',import.meta.url);if(location.pathname!==root.pathname){location.replace(root.href);return}hide();await epGuardianDashboard();return}document.body.classList.remove('epguardian-mode');await loadHistory();hide();if(!isQuiz)epLockCompletedMenu();if(isQuiz)await checkDailyLock();if(!epEnforceGrade())return;if(!dailyLocked)startClock();welcomeUser();loadRanking()}catch(e){show('<p>Não foi possível carregar o perfil: '+esc(authError(e))+'</p><div class="epactions"><button class="epbtn" id="epretry">Tentar novamente</button><button class="epbtn" id="epsignout">Sair</button></div>','Erro de ligação');document.getElementById('epretry').onclick=()=>location.reload();document.getElementById('epsignout').onclick=()=>signOut(auth)}}
+
+// v54.5.30 — Navegação adaptável: os botões originais mantêm os seus handlers.
+(function epSetupResponsiveNavigation(){
+ const nav=document.createElement('nav');nav.id='epresponsiveactions';nav.setAttribute('aria-label','Opções da conta');
+ const menu=document.createElement('button');menu.id='epmenutoggle';menu.type='button';menu.textContent='☰ Menu';
+ menu.setAttribute('aria-expanded','false');menu.setAttribute('aria-controls','epresponsiveactions');
+ menu.setAttribute('aria-label','Abrir menu de opções');
+ const actions=Array.from(bar.children).filter(n=>n.tagName==='BUTTON');
+ actions.forEach(b=>nav.appendChild(b));
+ bar.appendChild(menu);bar.appendChild(nav);
+ const close=()=>{nav.classList.remove('epmenuopen');menu.setAttribute('aria-expanded','false');menu.setAttribute('aria-label','Abrir menu de opções')};
+ menu.addEventListener('click',()=>{const open=!nav.classList.contains('epmenuopen');nav.classList.toggle('epmenuopen',open);menu.setAttribute('aria-expanded',String(open));menu.setAttribute('aria-label',open?'Fechar menu de opções':'Abrir menu de opções')});
+ nav.addEventListener('click',e=>{if(e.target.closest('button'))close()});
+ document.addEventListener('click',e=>{if(!bar.contains(e.target))close()});
+ document.addEventListener('keydown',e=>{if(e.key==='Escape')close()});
+ window.matchMedia('(min-width: 901px)').addEventListener('change',close);
+ const responsive=document.createElement('style');responsive.textContent=`
+ #epmenutoggle{display:none}
+ #epresponsiveactions{display:contents}
+ @media(max-width:900px){
+   #epbar{flex-wrap:nowrap;gap:8px;padding:8px 12px;min-height:56px;position:sticky;top:0}
+   #epbar>strong{white-space:nowrap;font-size:14px;flex-shrink:0}
+   #epbar #epwho{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
+   #epbar .epgrow{flex:1;min-width:0}
+   #epbar .epclock{font-size:12px;padding:6px;white-space:nowrap}
+   #epmenutoggle{display:block;white-space:nowrap;flex-shrink:0;min-height:42px}
+   #epresponsiveactions{display:none;position:absolute;right:8px;top:calc(100% + 2px);width:min(300px,calc(100vw - 16px));max-height:calc(100dvh - 75px);overflow-y:auto;background:#102f54;border:1px solid #4c719a;border-radius:12px;padding:8px;box-shadow:0 14px 32px #061b34a6;z-index:10001;box-sizing:border-box}
+   #epresponsiveactions.epmenuopen{display:flex;flex-direction:column;gap:6px}
+   #epresponsiveactions>button{display:block;width:100%;min-height:44px;text-align:left;padding:12px 14px;box-sizing:border-box}
+   #epresponsiveactions>button[hidden]{display:none!important}
+ }
+ @media(max-width:440px){#epbar>strong{font-size:12px}#epbar #epwho{font-size:12px}#epbar .epclock{font-size:11px;padding:4px}}
+ `;document.head.appendChild(responsive);
+})();
+
 onAuthStateChanged(auth,u=>{if(!creatingAccount)initSession(u)});
